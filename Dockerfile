@@ -1,4 +1,4 @@
-FROM golang:1.8 as builder
+FROM golang:1.10 as builder
 WORKDIR /go/src/github.com/codeuniversity/ppp-mhist
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -installsuffix cgo -o mhist main/main.go
