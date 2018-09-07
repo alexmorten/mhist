@@ -76,7 +76,7 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	measurement := &Measurement{
-		Ts:    time.Now().Unix(),
+		Ts:    time.Now().UnixNano(),
 		Value: data.Value,
 	}
 	s.store.Add(data.Name, measurement)
@@ -112,7 +112,7 @@ func parseParams(params url.Values) (p *getParams, err error) {
 	startTsParam := params.Get("start")
 	endTsParam := params.Get("end")
 	if endTsParam == "" {
-		p.endTs = time.Now().Unix()
+		p.endTs = time.Now().UnixNano()
 	} else {
 		p.endTs, err = strconv.ParseInt(endTsParam, 10, 64)
 		if err != nil {
@@ -120,7 +120,7 @@ func parseParams(params url.Values) (p *getParams, err error) {
 		}
 	}
 	if startTsParam == "" {
-		p.startTs = time.Unix(p.endTs-int64((time.Hour*1).Seconds()), 0).Unix()
+		p.startTs = p.endTs - (1 * time.Hour).Nanoseconds()
 	} else {
 		p.startTs, err = strconv.ParseInt(startTsParam, 10, 64)
 	}
