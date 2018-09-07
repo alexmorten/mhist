@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/codeuniversity/ppp-mhist"
+	"github.com/codeuniversity/ppp-mhist/test_helpers"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -18,7 +19,7 @@ func TestSeries(t *testing.T) {
 		})
 		Convey("returns correct measurements if given range is inside", func() {
 			s := mhist.NewSeries()
-			addMeasurements(s)
+			test_helpers.AddMeasurementsToSeries(s)
 			returnedMeasurements := s.GetMeasurementsInTimeRange(1005, 1035)
 
 			s.Shutdown()
@@ -29,7 +30,7 @@ func TestSeries(t *testing.T) {
 		})
 		Convey("returns all measurements if it is completly inside given range", func() {
 			s := mhist.NewSeries()
-			addMeasurements(s)
+			test_helpers.AddMeasurementsToSeries(s)
 			returnedMeasurements := s.GetMeasurementsInTimeRange(500, 4000)
 
 			s.Shutdown()
@@ -38,7 +39,7 @@ func TestSeries(t *testing.T) {
 
 		Convey("returns no measurements if given range has no overlap", func() {
 			s := mhist.NewSeries()
-			addMeasurements(s)
+			test_helpers.AddMeasurementsToSeries(s)
 			returnedMeasurements := s.GetMeasurementsInTimeRange(3000, 4000)
 
 			s.Shutdown()
@@ -47,7 +48,7 @@ func TestSeries(t *testing.T) {
 
 		Convey("returns correct if given range has partialy overlaps", func() {
 			s := mhist.NewSeries()
-			addMeasurements(s)
+			test_helpers.AddMeasurementsToSeries(s)
 			returnedMeasurements := s.GetMeasurementsInTimeRange(1025, 4000)
 
 			s.Shutdown()
@@ -56,17 +57,4 @@ func TestSeries(t *testing.T) {
 			So(returnedMeasurements[1].Value, ShouldEqual, 14)
 		})
 	})
-}
-
-func addMeasurements(s *mhist.Series) {
-	measurements := []*mhist.Measurement{
-		&mhist.Measurement{Ts: 1000, Value: 10},
-		&mhist.Measurement{Ts: 1010, Value: 11},
-		&mhist.Measurement{Ts: 1020, Value: 12},
-		&mhist.Measurement{Ts: 1030, Value: 13},
-		&mhist.Measurement{Ts: 1040, Value: 14},
-	}
-	for _, m := range measurements {
-		s.Add(m)
-	}
 }
