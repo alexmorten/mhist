@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"github.com/codeuniversity/ppp-mhist"
 )
 
 func main() {
-	fmt.Println("hello world")
+	server := mhist.NewServer()
+	server.Run()
 }
