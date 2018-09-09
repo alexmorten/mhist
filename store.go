@@ -46,20 +46,28 @@ func (s *Store) Add(name string, m *Measurement) {
 func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Measurement {
 	m := map[string][]Measurement{}
 
-	s.seriesMap.Range(func(key, value interface{}) bool {
-		name := key.(string)
-		series := value.(*Series)
+	s.forEachSeries(func(name string, series *Series) {
 		m[name] = series.GetMeasurementsInTimeRange(start, end)
-		return true
 	})
+
 	return m
 }
 
 //Shutdown all contained series
 //assumes that we don't get any messages anymore and thus don't create new Series while we do this
 func (s *Store) Shutdown() {
-	s.seriesMap.Range(func(_, value interface{}) bool {
-		value.(*Series).Shutdown()
+	s.forEachSeries(func(name string, series *Series) {
+		series.Shutdown()
+	})
+}
+
+func (s *Store) forEachSeries(f func(name string, series *Series)) {
+	s.seriesMap.Range(func(key, value interface{}) bool {
+		name := key.(string)
+		series := value.(*Series)
+		if series != nil {
+			f(name, series)
+		}
 		return true
 	})
 }
