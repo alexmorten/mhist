@@ -11,9 +11,10 @@ type Store struct {
 }
 
 //NewStore ..
-func NewStore() *Store {
+func NewStore(maxSize int) *Store {
 	s := &Store{
 		seriesMap: &sync.Map{},
+		maxSize:   maxSize,
 	}
 	return s
 }
@@ -21,15 +22,16 @@ func NewStore() *Store {
 //GetSeries thread safely
 func (s *Store) GetSeries(name string) *Series {
 	series, ok := s.seriesMap.Load(name)
-	if ok {
+	if ok && series != nil {
 		return series.(*Series)
 	}
+
 	s.Lock()
 	defer s.Unlock()
 
 	//Make sure we haven't added a series by chance yet
 	series, ok = s.seriesMap.Load(name)
-	if ok {
+	if ok && series != nil {
 		return series.(*Series)
 	}
 	createdSeries := NewSeries()
