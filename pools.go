@@ -15,25 +15,43 @@ type MeasurementSlices map[MeasurementType][]*Measurement
 
 //NewPools returns the constructed pool handler
 func NewPools(store *Store) *Pools {
-	return &Pools{
+	pools := &Pools{
 		Store: store,
-		pools: map[MeasurementType]*sync.Pool{
-			MeasurementNumerical: &sync.Pool{
-				New: func() interface{} {
-					return struct{}{}
-				},
+	}
+	pools.pools = map[MeasurementType]*sync.Pool{
+		MeasurementNumerical: &sync.Pool{
+			New: func() interface{} {
+				slices, ok := grabSlicesFromStore(store)
+				if ok {
+					numericalSlice := slices[MeasurementNumerical]
+					if len(numericalSlice) > 0 {
+						measurement := numericalSlice[0]
+						rest := numericalSlice[1:]
+						slices[MeasurementNumerical] = rest
+						pools.fill(slices)
+						return measurement
+					}
+				}
+				return &Measurement{}
 			},
 		},
 	}
+	return pools
 }
 
-//GrabSlicesFromStore ...
-func (pools *Pools) GrabSlicesFromStore() MeasurementSlices {
-	return MeasurementSlices{}
+//GetNumericalMeasurement out of the correct pool
+func (pools *Pools) GetNumericalMeasurement() *Measurement {
+	return pools.pools[MeasurementNumerical].Get().(*Measurement)
 }
 
-//Fill pools with slices
-func (pools *Pools) Fill(slices MeasurementSlices) {
+func grabSlicesFromStore(store *Store) (slices MeasurementSlices, ok bool) {
+	if store.IsOverMaxSize() {
+		return store.ShrinkStore(), true
+	}
+	return nil, false
+}
+
+func (pools *Pools) fill(slices MeasurementSlices) {
 	for key, slice := range slices {
 		for _, measurement := range slice {
 			pools.pools[key].Put(measurement)

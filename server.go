@@ -14,12 +14,15 @@ import (
 //Server is the handler for requests
 type Server struct {
 	store *Store
+	pools *Pools
 }
 
 //NewServer returns a new Server
 func NewServer(memorySize int) *Server {
+	store := NewStore(memorySize)
 	return &Server{
-		store: NewStore(memorySize),
+		store: store,
+		pools: NewPools(store),
 	}
 }
 
@@ -75,10 +78,11 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 		renderError(err, w, http.StatusBadRequest)
 		return
 	}
-	measurement := &Measurement{
-		Ts:    time.Now().UnixNano(),
-		Value: data.Value,
-	}
+	measurement := s.pools.GetNumericalMeasurement()
+	measurement.Reset()
+	measurement.Ts = time.Now().UnixNano()
+	measurement.Value = data.Value
+
 	s.store.Add(data.Name, measurement)
 }
 

@@ -79,14 +79,14 @@ func (s *Store) IsOverMaxSize() bool {
 	return s.Size() > s.maxSize
 }
 
-//ShrinkStore and return measurements for recycling
+//ShrinkStore by 10% and return measurements for recycling
 func (s *Store) ShrinkStore() MeasurementSlices {
 	slices := MeasurementSlices{}
 
 	oldestSeries := s.findOldestSeries()
 	biggestSeries := s.findBiggestSeries()
 	timeRange := biggestSeries.LatestTs() - biggestSeries.OldestTs()
-	cutoffPoint := oldestSeries.OldestTs() + timeRange
+	cutoffPoint := oldestSeries.OldestTs() + int64(float64(timeRange)*0.1)
 
 	s.forEachSeries(func(_ string, series *Series) {
 		slices[series.Type()] = append(slices[series.Type()], series.CutoffBelow(cutoffPoint)...)

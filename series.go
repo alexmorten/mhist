@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 )
 
 //Series represents a series of measurements over time
@@ -15,6 +16,7 @@ type Series struct {
 	stopChan        chan struct{}
 	size            int
 	measurementType MeasurementType
+	rwLock          sync.RWMutex
 }
 
 type cutoffMessage struct {
@@ -59,6 +61,8 @@ func (s *Series) Shutdown() {
 //GetMeasurementsInTimeRange returns the measurements in approx. the given timerange
 ////assumes equally distributed measurements over time
 func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) []Measurement {
+	s.rwLock.RLock()
+	defer s.rwLock.RUnlock()
 	startIndex, err := s.calcIndexAbove(start)
 	if err != nil {
 		fmt.Println(err)
@@ -103,6 +107,8 @@ func (s *Series) Type() MeasurementType {
 }
 
 func (s *Series) handleCutoff(message *cutoffMessage) {
+	s.rwLock.Lock()
+	defer s.rwLock.Unlock()
 
 	if message.lowestTs <= s.OldestTs() {
 		message.returnChan <- []*Measurement{}
