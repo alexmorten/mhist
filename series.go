@@ -9,18 +9,28 @@ import (
 //Series represents a series of measurements over time
 //assumes measurements are taken in order
 type Series struct {
-	measurements []*Measurement
-	addChan      chan *Measurement
-	stopChan     chan struct{}
+	measurements    []*Measurement
+	addChan         chan *Measurement
+	cutoffChan      chan *cutoffMessage
+	stopChan        chan struct{}
+	size            int
+	measurementType MeasurementType
+}
+
+type cutoffMessage struct {
+	lowestTs   int64
+	returnChan chan []*Measurement
 }
 
 //NewSeries constructs a new series and starts the listening goroutine
-func NewSeries() *Series {
+func NewSeries(MeasurementType) *Series {
 	s := &Series{
 		measurements: []*Measurement{},
 		addChan:      make(chan *Measurement),
 		stopChan:     make(chan struct{}),
+		cutoffChan:   make(chan *cutoffMessage),
 	}
+
 	go s.Listen()
 	return s
 }
@@ -28,6 +38,17 @@ func NewSeries() *Series {
 //Add m to series
 func (s *Series) Add(m *Measurement) {
 	s.addChan <- m
+}
+
+//CutoffBelow a timestamp and return thrown away measurements
+func (s *Series) CutoffBelow(lowestTs int64) []*Measurement {
+	returnChan := make(chan []*Measurement)
+	s.cutoffChan <- &cutoffMessage{
+		lowestTs:   lowestTs,
+		returnChan: returnChan,
+	}
+	returnedSlice := <-returnChan
+	return returnedSlice
 }
 
 //Shutdown series goroutine
@@ -61,51 +82,89 @@ func (s *Series) Listen() {
 loop:
 	for {
 		select {
-		case m := <-s.addChan:
-			s.handleAdd(m)
 		case <-s.stopChan:
 			break loop
+		case message := <-s.cutoffChan:
+			s.handleCutoff(message)
+		case measurement := <-s.addChan:
+			s.handleAdd(measurement)
 		}
 	}
 }
 
+//Size of all measurements contained in the Series
+func (s *Series) Size() int {
+	return s.size
+}
+
+//Type of contained measurements
+func (s *Series) Type() MeasurementType {
+	return s.measurementType
+}
+
+func (s *Series) handleCutoff(message *cutoffMessage) {
+
+	if message.lowestTs <= s.OldestTs() {
+		message.returnChan <- []*Measurement{}
+		return
+	}
+
+	index := 0
+	removedBytes := 0
+	for _, m := range s.measurements {
+		if m.Ts > message.lowestTs {
+			break
+		}
+		removedBytes += m.Size()
+		index++
+	}
+
+	cutoffSlices := s.measurements[:index]
+	remainingSlices := s.measurements[index:]
+	s.measurements = remainingSlices
+	s.size -= removedBytes
+	message.returnChan <- cutoffSlices
+}
+
 func (s *Series) handleAdd(m *Measurement) {
+	s.size += m.Size()
 	s.measurements = append(s.measurements, m)
 }
 
 func (s *Series) calcIndexAbove(ts int64) (int, error) {
-	if ts <= s.oldestTs() {
+	if ts <= s.OldestTs() {
 		return 0, nil
 	}
 	//shouldn't happen
-	if ts > s.latestTs() {
+	if ts > s.LatestTs() {
 		return 0, errors.New("given ts is above the latest measured timestamp")
 	}
 
 	//assumes equally distributed measurements over time, no need for perfectly accurate results yet
-	timeRange := s.latestTs() - s.oldestTs()
-	posInRange := ts - s.oldestTs()
+	timeRange := s.LatestTs() - s.OldestTs()
+	posInRange := ts - s.OldestTs()
 	index := float64(posInRange) / float64(timeRange) * float64(len(s.measurements)-1)
 	return int(math.Ceil(index)), nil
 }
 
 func (s *Series) calcIndexBelow(ts int64) (int, error) {
 	//shouldn't happen
-	if ts < s.oldestTs() {
+	if ts < s.OldestTs() {
 		return 0, errors.New("given ts is below the oldest measured timestamp")
 	}
-	if ts >= s.latestTs() {
+	if ts >= s.LatestTs() {
 		return len(s.measurements) - 1, nil
 	}
 
 	//assumes equally distributed measurements over time, no need for perfectly accurate results yet
-	timeRange := s.latestTs() - s.oldestTs() // 40
-	posInRange := ts - s.oldestTs()          // 1035 - 1000 = 35
+	timeRange := s.LatestTs() - s.OldestTs() // 40
+	posInRange := ts - s.OldestTs()          // 1035 - 1000 = 35
 	index := float64(posInRange) / float64(timeRange) * float64(len(s.measurements)-1)
 	return int(index), nil
 }
 
-func (s *Series) latestTs() int64 {
+//LatestTs in series
+func (s *Series) LatestTs() int64 {
 	if len(s.measurements) == 0 {
 		return 0
 	}
@@ -113,7 +172,8 @@ func (s *Series) latestTs() int64 {
 	return s.measurements[len(s.measurements)-1].Ts
 }
 
-func (s *Series) oldestTs() int64 {
+//OldestTs in series
+func (s *Series) OldestTs() int64 {
 	if len(s.measurements) == 0 {
 		return 0
 	}

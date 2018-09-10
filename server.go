@@ -17,9 +17,9 @@ type Server struct {
 }
 
 //NewServer returns a new Server
-func NewServer() *Server {
+func NewServer(memorySize int) *Server {
 	return &Server{
-		store: NewStore(),
+		store: NewStore(memorySize),
 	}
 }
 
