@@ -8,6 +8,7 @@ import (
 type Store struct {
 	seriesMap *sync.Map
 	sync.Mutex
+	maxSize int
 }
 
 //NewStore ..
@@ -20,7 +21,7 @@ func NewStore(maxSize int) *Store {
 }
 
 //GetSeries thread safely
-func (s *Store) GetSeries(name string) *Series {
+func (s *Store) GetSeries(name string, measurementType MeasurementType) *Series {
 	series, ok := s.seriesMap.Load(name)
 	if ok && series != nil {
 		return series.(*Series)
@@ -34,14 +35,14 @@ func (s *Store) GetSeries(name string) *Series {
 	if ok && series != nil {
 		return series.(*Series)
 	}
-	createdSeries := NewSeries()
+	createdSeries := NewSeries(measurementType)
 	s.seriesMap.Store(name, createdSeries)
 	return createdSeries
 }
 
 //Add named measurement to correct Series
 func (s *Store) Add(name string, m *Measurement) {
-	s.GetSeries(name).Add(m)
+	s.GetSeries(name, m.Type()).Add(m)
 }
 
 //GetAllMeasurementsInTimeRange for all series
@@ -61,6 +62,61 @@ func (s *Store) Shutdown() {
 	s.forEachSeries(func(name string, series *Series) {
 		series.Shutdown()
 	})
+}
+
+//Size of all carried Series'
+func (s *Store) Size() int {
+	size := 0
+
+	s.forEachSeries(func(_ string, series *Series) {
+		size += series.Size()
+	})
+	return size
+}
+
+//IsOverMaxSize ...
+func (s *Store) IsOverMaxSize() bool {
+	return s.Size() > s.maxSize
+}
+
+//ShrinkStore by 10% and return measurements for recycling
+func (s *Store) ShrinkStore() MeasurementSlices {
+	slices := MeasurementSlices{}
+
+	oldestSeries := s.findOldestSeries()
+	biggestSeries := s.findBiggestSeries()
+	timeRange := biggestSeries.LatestTs() - biggestSeries.OldestTs()
+	cutoffPoint := oldestSeries.OldestTs() + int64(float64(timeRange)*0.1)
+
+	s.forEachSeries(func(_ string, series *Series) {
+		slices[series.Type()] = append(slices[series.Type()], series.CutoffBelow(cutoffPoint)...)
+	})
+
+	return slices
+}
+
+func (s *Store) findOldestSeries() (series *Series) {
+	timestamp := int64(0)
+
+	s.forEachSeries(func(_ string, currentSeries *Series) {
+		if timestamp == 0 || timestamp > currentSeries.OldestTs() {
+			timestamp = currentSeries.OldestTs()
+			series = currentSeries
+		}
+	})
+	return
+}
+
+func (s *Store) findBiggestSeries() (series *Series) {
+	size := 0
+
+	s.forEachSeries(func(_ string, currentSeries *Series) {
+		if size == 0 || size < currentSeries.Size() {
+			size = currentSeries.Size()
+			series = currentSeries
+		}
+	})
+	return
 }
 
 func (s *Store) forEachSeries(f func(name string, series *Series)) {
