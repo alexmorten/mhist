@@ -163,8 +163,8 @@ func (s *Series) calcIndexBelow(ts int64) (int, error) {
 	}
 
 	//assumes equally distributed measurements over time, no need for perfectly accurate results yet
-	timeRange := s.LatestTs() - s.OldestTs() // 40
-	posInRange := ts - s.OldestTs()          // 1035 - 1000 = 35
+	timeRange := s.LatestTs() - s.OldestTs()
+	posInRange := ts - s.OldestTs()
 	index := float64(posInRange) / float64(timeRange) * float64(len(s.measurements)-1)
 	return int(index), nil
 }
