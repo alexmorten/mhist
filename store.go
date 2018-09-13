@@ -41,13 +41,13 @@ func (s *Store) GetSeries(name string, measurementType MeasurementType) *Series 
 }
 
 //Add named measurement to correct Series
-func (s *Store) Add(name string, m *Measurement) {
+func (s *Store) Add(name string, m *Numerical) {
 	s.GetSeries(name, m.Type()).Add(m)
 }
 
 //GetAllMeasurementsInTimeRange for all series
-func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Measurement {
-	m := map[string][]Measurement{}
+func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Numerical {
+	m := map[string][]Numerical{}
 
 	s.forEachSeries(func(name string, series *Series) {
 		m[name] = series.GetMeasurementsInTimeRange(start, end)

@@ -10,8 +10,8 @@ import (
 //Series represents a series of measurements over time
 //assumes measurements are taken in order
 type Series struct {
-	measurements    []*Measurement
-	addChan         chan *Measurement
+	measurements    []*Numerical
+	addChan         chan *Numerical
 	cutoffChan      chan *cutoffMessage
 	stopChan        chan struct{}
 	size            int
@@ -21,14 +21,14 @@ type Series struct {
 
 type cutoffMessage struct {
 	lowestTs   int64
-	returnChan chan []*Measurement
+	returnChan chan []*Numerical
 }
 
 //NewSeries constructs a new series and starts the listening goroutine
 func NewSeries(MeasurementType) *Series {
 	s := &Series{
-		measurements: []*Measurement{},
-		addChan:      make(chan *Measurement),
+		measurements: []*Numerical{},
+		addChan:      make(chan *Numerical),
 		stopChan:     make(chan struct{}),
 		cutoffChan:   make(chan *cutoffMessage),
 	}
@@ -38,13 +38,13 @@ func NewSeries(MeasurementType) *Series {
 }
 
 //Add m to series
-func (s *Series) Add(m *Measurement) {
+func (s *Series) Add(m *Numerical) {
 	s.addChan <- m
 }
 
 //CutoffBelow a timestamp and return thrown away measurements
-func (s *Series) CutoffBelow(lowestTs int64) []*Measurement {
-	returnChan := make(chan []*Measurement)
+func (s *Series) CutoffBelow(lowestTs int64) []*Numerical {
+	returnChan := make(chan []*Numerical)
 	s.cutoffChan <- &cutoffMessage{
 		lowestTs:   lowestTs,
 		returnChan: returnChan,
@@ -60,21 +60,21 @@ func (s *Series) Shutdown() {
 
 //GetMeasurementsInTimeRange returns the measurements in approx. the given timerange
 ////assumes equally distributed measurements over time
-func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) []Measurement {
+func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) []Numerical {
 	s.rwLock.RLock()
 	defer s.rwLock.RUnlock()
 	startIndex, err := s.calcIndexAbove(start)
 	if err != nil {
 		fmt.Println(err)
-		return []Measurement{}
+		return []Numerical{}
 	}
 	endIndex, err := s.calcIndexBelow(end)
 	if err != nil {
 		fmt.Println(err)
-		return []Measurement{}
+		return []Numerical{}
 	}
 	length := endIndex - startIndex + 1
-	measurements := make([]Measurement, length)
+	measurements := make([]Numerical, length)
 	for i := 0; i < length; i++ {
 		measurements[i] = *s.measurements[i+startIndex]
 	}
@@ -111,7 +111,7 @@ func (s *Series) handleCutoff(message *cutoffMessage) {
 	defer s.rwLock.Unlock()
 
 	if message.lowestTs <= s.OldestTs() {
-		message.returnChan <- []*Measurement{}
+		message.returnChan <- []*Numerical{}
 		return
 	}
 
@@ -132,7 +132,7 @@ func (s *Series) handleCutoff(message *cutoffMessage) {
 	message.returnChan <- cutoffSlices
 }
 
-func (s *Series) handleAdd(m *Measurement) {
+func (s *Series) handleAdd(m *Numerical) {
 	s.size += m.Size()
 	s.measurements = append(s.measurements, m)
 }

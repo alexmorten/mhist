@@ -1,4 +1,4 @@
-package test_helpers
+package testhelpers
 
 import (
 	"github.com/codeuniversity/ppp-mhist"
@@ -13,10 +13,10 @@ func AddMeasurementsToSeries(s *mhist.Series) {
 }
 
 //GetSampleMeasurements ...
-func GetSampleMeasurements(amount, startTs, increment int64) []*mhist.Measurement {
-	measurements := []*mhist.Measurement{}
+func GetSampleMeasurements(amount, startTs, increment int64) []*mhist.Numerical {
+	measurements := []*mhist.Numerical{}
 	for i := int64(0); i < amount; i++ {
-		measurements = append(measurements, &mhist.Measurement{Ts: startTs + increment*i, Value: float64(10 + i)})
+		measurements = append(measurements, &mhist.Numerical{Ts: startTs + increment*i, Value: float64(10 + i)})
 	}
 	return measurements
 }

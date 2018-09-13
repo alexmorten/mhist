@@ -4,28 +4,33 @@ import (
 	"unsafe"
 )
 
-//Measurement represents a single meassured value in time
-type Measurement struct {
+//Numerical represents a single meassured value in time
+type Numerical struct {
 	Ts    int64
 	Value float64
 }
 
-const measurementSize = int(unsafe.Sizeof(Measurement{}))
+const measurementSize = int(unsafe.Sizeof(Numerical{}))
 
 //Size of a siggle Measurement
-func (m *Measurement) Size() int {
+func (n *Numerical) Size() int {
 	return measurementSize
 }
 
 //Reset resets the Measurement to its zero value
-func (m *Measurement) Reset() {
-	m.Ts = 0
-	m.Value = 0
+func (n *Numerical) Reset() {
+	n.Ts = 0
+	n.Value = 0
 }
 
 //Type of Measurement
-func (m *Measurement) Type() MeasurementType {
+func (n *Numerical) Type() MeasurementType {
 	return MeasurementNumerical
+}
+
+//Timestamp of Measurement
+func (n *Numerical) Timestamp() int64 {
+	return n.Ts
 }
 
 //MeasurementType enum of different types of measurements
