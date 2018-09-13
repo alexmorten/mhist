@@ -74,9 +74,14 @@ func (s *Store) Size() int {
 	return size
 }
 
-//IsOverMaxSize ...
+//IsOverMaxSize we shoud start throwing things into the GC
 func (s *Store) IsOverMaxSize() bool {
 	return s.Size() > s.maxSize
+}
+
+//IsOverSoftLimit leaves memory room for recycling
+func (s *Store) IsOverSoftLimit() bool {
+	return s.Size() > int(float64(s.maxSize)*0.8)
 }
 
 //ShrinkStore by 10% and return measurements for recycling
