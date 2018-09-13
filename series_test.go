@@ -27,9 +27,6 @@ func TestSeries(t *testing.T) {
 
 				s.Shutdown()
 				So(len(returnedMeasurements), ShouldEqual, 3)
-				So(returnedMeasurements[0].Value, ShouldEqual, 11)
-				So(returnedMeasurements[1].Value, ShouldEqual, 12)
-				So(returnedMeasurements[2].Value, ShouldEqual, 13)
 			})
 			Convey("returns all measurements if it is completly inside given range", func() {
 				s := mhist.NewSeries(maxSize)
@@ -56,8 +53,6 @@ func TestSeries(t *testing.T) {
 
 				s.Shutdown()
 				So(len(returnedMeasurements), ShouldEqual, 2)
-				So(returnedMeasurements[0].Value, ShouldEqual, 13)
-				So(returnedMeasurements[1].Value, ShouldEqual, 14)
 			})
 		})
 

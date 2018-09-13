@@ -4,6 +4,14 @@ import (
 	"unsafe"
 )
 
+//Measurement interface
+type Measurement interface {
+	Type() MeasurementType
+	Timestamp() int64
+	Size() int
+	Reset()
+}
+
 //Numerical represents a single meassured value in time
 type Numerical struct {
 	Ts    int64

@@ -11,7 +11,7 @@ type Pools struct {
 }
 
 //MeasurementSlices for moving types of Measurements around
-type MeasurementSlices map[MeasurementType][]*Numerical
+type MeasurementSlices map[MeasurementType][]Measurement
 
 //NewPools returns the constructed pool handler
 func NewPools(store *Store) *Pools {

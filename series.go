@@ -10,8 +10,8 @@ import (
 //Series represents a series of measurements over time
 //assumes measurements are taken in order
 type Series struct {
-	measurements    []*Numerical
-	addChan         chan *Numerical
+	measurements    []Measurement
+	addChan         chan Measurement
 	cutoffChan      chan *cutoffMessage
 	stopChan        chan struct{}
 	size            int
@@ -21,16 +21,17 @@ type Series struct {
 
 type cutoffMessage struct {
 	lowestTs   int64
-	returnChan chan []*Numerical
+	returnChan chan []Measurement
 }
 
 //NewSeries constructs a new series and starts the listening goroutine
-func NewSeries(MeasurementType) *Series {
+func NewSeries(measurementType MeasurementType) *Series {
 	s := &Series{
-		measurements: []*Numerical{},
-		addChan:      make(chan *Numerical),
-		stopChan:     make(chan struct{}),
-		cutoffChan:   make(chan *cutoffMessage),
+		measurements:    []Measurement{},
+		addChan:         make(chan Measurement),
+		stopChan:        make(chan struct{}),
+		cutoffChan:      make(chan *cutoffMessage),
+		measurementType: measurementType,
 	}
 
 	go s.Listen()
@@ -38,13 +39,13 @@ func NewSeries(MeasurementType) *Series {
 }
 
 //Add m to series
-func (s *Series) Add(m *Numerical) {
+func (s *Series) Add(m Measurement) {
 	s.addChan <- m
 }
 
 //CutoffBelow a timestamp and return thrown away measurements
-func (s *Series) CutoffBelow(lowestTs int64) []*Numerical {
-	returnChan := make(chan []*Numerical)
+func (s *Series) CutoffBelow(lowestTs int64) []Measurement {
+	returnChan := make(chan []Measurement)
 	s.cutoffChan <- &cutoffMessage{
 		lowestTs:   lowestTs,
 		returnChan: returnChan,
@@ -60,23 +61,23 @@ func (s *Series) Shutdown() {
 
 //GetMeasurementsInTimeRange returns the measurements in approx. the given timerange
 ////assumes equally distributed measurements over time
-func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) []Numerical {
+func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) []Measurement {
 	s.rwLock.RLock()
 	defer s.rwLock.RUnlock()
 	startIndex, err := s.calcIndexAbove(start)
 	if err != nil {
 		fmt.Println(err)
-		return []Numerical{}
+		return []Measurement{}
 	}
 	endIndex, err := s.calcIndexBelow(end)
 	if err != nil {
 		fmt.Println(err)
-		return []Numerical{}
+		return []Measurement{}
 	}
 	length := endIndex - startIndex + 1
-	measurements := make([]Numerical, length)
+	measurements := make([]Measurement, length)
 	for i := 0; i < length; i++ {
-		measurements[i] = *s.measurements[i+startIndex]
+		measurements[i] = getCopiedValueInterface(s.measurements[i+startIndex])
 	}
 	return measurements
 }
@@ -111,14 +112,14 @@ func (s *Series) handleCutoff(message *cutoffMessage) {
 	defer s.rwLock.Unlock()
 
 	if message.lowestTs <= s.OldestTs() {
-		message.returnChan <- []*Numerical{}
+		message.returnChan <- []Measurement{}
 		return
 	}
 
 	index := 0
 	removedBytes := 0
 	for _, m := range s.measurements {
-		if m.Ts > message.lowestTs {
+		if m.Timestamp() > message.lowestTs {
 			break
 		}
 		removedBytes += m.Size()
@@ -132,7 +133,7 @@ func (s *Series) handleCutoff(message *cutoffMessage) {
 	message.returnChan <- cutoffSlices
 }
 
-func (s *Series) handleAdd(m *Numerical) {
+func (s *Series) handleAdd(m Measurement) {
 	s.size += m.Size()
 	s.measurements = append(s.measurements, m)
 }
@@ -175,7 +176,7 @@ func (s *Series) LatestTs() int64 {
 		return 0
 	}
 
-	return s.measurements[len(s.measurements)-1].Ts
+	return s.measurements[len(s.measurements)-1].Timestamp()
 }
 
 //OldestTs in series
@@ -184,5 +185,14 @@ func (s *Series) OldestTs() int64 {
 		return 0
 	}
 
-	return s.measurements[0].Ts
+	return s.measurements[0].Timestamp()
+}
+
+func getCopiedValueInterface(measurement Measurement) Measurement {
+	switch measurement.(type) {
+	case *Numerical:
+		value := *measurement.(*Numerical)
+		return &value
+	}
+	return nil
 }

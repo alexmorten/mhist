@@ -46,8 +46,8 @@ func (s *Store) Add(name string, m *Numerical) {
 }
 
 //GetAllMeasurementsInTimeRange for all series
-func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Numerical {
-	m := map[string][]Numerical{}
+func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Measurement {
+	m := map[string][]Measurement{}
 
 	s.forEachSeries(func(name string, series *Series) {
 		m[name] = series.GetMeasurementsInTimeRange(start, end)
