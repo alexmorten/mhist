@@ -45,8 +45,11 @@ func (pools *Pools) GetNumericalMeasurement() *Numerical {
 }
 
 func grabSlicesFromStore(store *Store) (slices MeasurementSlices, ok bool) {
-	if store.IsOverMaxSize() {
-		return store.ShrinkStore(), true
+	if store.IsOverSoftLimit() {
+		slices := store.ShrinkStore()
+		if !store.IsOverMaxSize() {
+			return slices, true
+		}
 	}
 	return nil, false
 }
