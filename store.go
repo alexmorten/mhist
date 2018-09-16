@@ -41,7 +41,7 @@ func (s *Store) GetSeries(name string, measurementType MeasurementType) *Series 
 }
 
 //Add named measurement to correct Series
-func (s *Store) Add(name string, m *Measurement) {
+func (s *Store) Add(name string, m *Numerical) {
 	s.GetSeries(name, m.Type()).Add(m)
 }
 
