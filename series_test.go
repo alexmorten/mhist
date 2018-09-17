@@ -23,14 +23,14 @@ func TestSeries(t *testing.T) {
 		})
 		Convey("GetMeasurementsInTimeRange()", func() {
 			Convey("returns no measurements if empty", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				returnedMeasurements := s.GetMeasurementsInTimeRange(1005, 1035)
 				s.Shutdown()
 
 				So(len(returnedMeasurements), ShouldEqual, 0)
 			})
 			Convey("returns correct measurements if given range is inside", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
 				returnedMeasurements := s.GetMeasurementsInTimeRange(1005, 1035)
 
@@ -38,7 +38,7 @@ func TestSeries(t *testing.T) {
 				So(len(returnedMeasurements), ShouldEqual, 3)
 			})
 			Convey("returns all measurements if it is completly inside given range", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
 				returnedMeasurements := s.GetMeasurementsInTimeRange(500, 4000)
 
@@ -47,7 +47,7 @@ func TestSeries(t *testing.T) {
 			})
 
 			Convey("returns no measurements if given range has no overlap", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
 				returnedMeasurements := s.GetMeasurementsInTimeRange(3000, 4000)
 
@@ -56,7 +56,7 @@ func TestSeries(t *testing.T) {
 			})
 
 			Convey("returns correct if given range has partialy overlaps", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
 				returnedMeasurements := s.GetMeasurementsInTimeRange(1025, 4000)
 
@@ -67,7 +67,7 @@ func TestSeries(t *testing.T) {
 
 		Convey("CutoffBelow()", func() {
 			Convey("returns correct measurements", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
 
 				So(s.Size(), ShouldEqual, 80)
@@ -78,7 +78,7 @@ func TestSeries(t *testing.T) {
 			})
 
 			Convey("returns no measurements if timestamp is below all of series", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
 
 				So(s.Size(), ShouldEqual, 80)
@@ -89,7 +89,7 @@ func TestSeries(t *testing.T) {
 			})
 
 			Convey("returns all measurements if timestamp is above all of series", func() {
-				s := mhist.NewSeries(maxSize)
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
 
 				So(s.Size(), ShouldEqual, 80)
