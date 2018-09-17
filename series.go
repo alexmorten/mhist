@@ -134,8 +134,12 @@ func (s *Series) handleCutoff(message *cutoffMessage) {
 }
 
 func (s *Series) handleAdd(m Measurement) {
-	s.size += m.Size()
-	s.measurements = append(s.measurements, m)
+	if s.measurementType == m.Type() {
+		s.size += m.Size()
+		s.measurements = append(s.measurements, m)
+		return
+	}
+	fmt.Println(m, " is not the correct type for this series")
 }
 
 func (s *Series) calcIndexAbove(ts int64) (int, error) {
@@ -192,6 +196,9 @@ func getCopiedValueInterface(measurement Measurement) Measurement {
 	switch measurement.(type) {
 	case *Numerical:
 		value := *measurement.(*Numerical)
+		return &value
+	case *Categorical:
+		value := *measurement.(*Categorical)
 		return &value
 	}
 	return nil
