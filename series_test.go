@@ -12,6 +12,15 @@ const maxSize = 100 * 1024 * 1024
 
 func TestSeries(t *testing.T) {
 	Convey("Series", t, func() {
+		Convey("Add()", func() {
+			Convey("It only adds measurements it was created with", func() {
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
+				s.Add(&mhist.Numerical{Ts: 1000})
+				s.Add(&mhist.Categorical{Ts: 2000})
+				returnedMeasurements := s.GetMeasurementsInTimeRange(0, 3000)
+				So(len(returnedMeasurements), ShouldEqual, 1)
+			})
+		})
 		Convey("GetMeasurementsInTimeRange()", func() {
 			Convey("returns no measurements if empty", func() {
 				s := mhist.NewSeries(maxSize)

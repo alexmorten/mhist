@@ -57,8 +57,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type postRequest struct {
-	Name  string  `json:"name"`
-	Value float64 `json:"value"`
+	Name  string      `json:"name"`
+	Value interface{} `json:"value"`
 }
 
 func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
@@ -78,11 +78,11 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 		renderError(err, w, http.StatusBadRequest)
 		return
 	}
-	measurement := s.pools.GetNumericalMeasurement()
-	measurement.Reset()
-	measurement.Ts = time.Now().UnixNano()
-	measurement.Value = data.Value
-
+	measurement, err := s.constructMeasurementFromPostRequest(data)
+	if err != nil {
+		renderError(err, w, http.StatusBadRequest)
+		return
+	}
 	s.store.Add(data.Name, measurement)
 }
 
@@ -143,4 +143,24 @@ func renderError(err error, w http.ResponseWriter, status int) {
 		w.Write(data)
 		w.WriteHeader(status)
 	}
+}
+
+func (s *Server) constructMeasurementFromPostRequest(r *postRequest) (measurement Measurement, err error) {
+	switch r.Value.(type) {
+	case float64:
+		m := s.pools.GetNumericalMeasurement()
+		m.Reset()
+		m.Ts = time.Now().UnixNano()
+		m.Value = r.Value.(float64)
+		measurement = m
+	case string:
+		m := s.pools.GetCategoricalMeasurement()
+		m.Reset()
+		m.Ts = time.Now().UnixNano()
+		m.Value = r.Value.(string)
+		measurement = m
+	default:
+		return nil, errors.New("value is neither a float nor a string")
+	}
+	return
 }

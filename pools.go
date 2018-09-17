@@ -35,6 +35,22 @@ func NewPools(store *Store) *Pools {
 				return &Numerical{}
 			},
 		},
+		MeasurementCategorical: &sync.Pool{
+			New: func() interface{} {
+				slices, ok := grabSlicesFromStore(store)
+				if ok {
+					categoricalSlice := slices[MeasurementCategorical]
+					if len(categoricalSlice) > 0 {
+						measurement := categoricalSlice[0]
+						rest := categoricalSlice[1:]
+						slices[MeasurementCategorical] = rest
+						pools.fill(slices)
+						return measurement
+					}
+				}
+				return &Categorical{}
+			},
+		},
 	}
 	return pools
 }
@@ -42,6 +58,11 @@ func NewPools(store *Store) *Pools {
 //GetNumericalMeasurement out of the correct pool
 func (pools *Pools) GetNumericalMeasurement() *Numerical {
 	return pools.pools[MeasurementNumerical].Get().(*Numerical)
+}
+
+//GetCategoricalMeasurement out of the correct pool
+func (pools *Pools) GetCategoricalMeasurement() *Categorical {
+	return pools.pools[MeasurementCategorical].Get().(*Categorical)
 }
 
 func grabSlicesFromStore(store *Store) (slices MeasurementSlices, ok bool) {

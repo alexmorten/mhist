@@ -18,11 +18,11 @@ type Numerical struct {
 	Value float64
 }
 
-const measurementSize = int(unsafe.Sizeof(Numerical{}))
+const numericalSize = int(unsafe.Sizeof(Numerical{}))
 
 //Size of a siggle Measurement
 func (n *Numerical) Size() int {
-	return measurementSize
+	return numericalSize
 }
 
 //Reset resets the Measurement to its zero value
@@ -41,6 +41,35 @@ func (n *Numerical) Timestamp() int64 {
 	return n.Ts
 }
 
+//Categorical represents a single categorical meassured value in time
+type Categorical struct {
+	Ts    int64
+	Value string
+}
+
+const categoricalSize = int(unsafe.Sizeof(Categorical{}))
+
+//Size of a siggle Measurement
+func (c *Categorical) Size() int {
+	return categoricalSize + len(c.Value)
+}
+
+//Reset resets the Measurement to its zero value
+func (c *Categorical) Reset() {
+	c.Ts = 0
+	c.Value = ""
+}
+
+//Type of Measurement
+func (c *Categorical) Type() MeasurementType {
+	return MeasurementCategorical
+}
+
+//Timestamp of Measurement
+func (c *Categorical) Timestamp() int64 {
+	return c.Ts
+}
+
 //MeasurementType enum of different types of measurements
 type MeasurementType int
 
@@ -49,5 +78,5 @@ const (
 	MeasurementNumerical MeasurementType = iota
 
 	//MeasurementCategorical for measurements that are non numerical and not interpolateable (TBD)
-	// MeasurementCategorical
+	MeasurementCategorical
 )
