@@ -8,7 +8,8 @@ import (
 type Store struct {
 	seriesMap *sync.Map
 	sync.Mutex
-	maxSize int
+	maxSize     int
+	subscribers SubscriberSlice
 }
 
 //NewStore ..
@@ -18,6 +19,11 @@ func NewStore(maxSize int) *Store {
 		maxSize:   maxSize,
 	}
 	return s
+}
+
+//AddSubscriber to Store
+func (s *Store) AddSubscriber(sub Subscriber) {
+	s.subscribers = append(s.subscribers, sub)
 }
 
 //GetSeries thread safely
@@ -43,6 +49,8 @@ func (s *Store) GetSeries(name string, measurementType MeasurementType) *Series 
 //Add named measurement to correct Series
 func (s *Store) Add(name string, m Measurement) {
 	s.GetSeries(name, m.Type()).Add(m)
+
+	s.subscribers.NotifyAll(name, m)
 }
 
 //GetAllMeasurementsInTimeRange for all series
