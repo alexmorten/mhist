@@ -77,7 +77,7 @@ func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) []Measuremen
 	length := endIndex - startIndex + 1
 	measurements := make([]Measurement, length)
 	for i := 0; i < length; i++ {
-		measurements[i] = getCopiedValueInterface(s.measurements[i+startIndex])
+		measurements[i] = s.measurements[i+startIndex].Copy()
 	}
 	return measurements
 }
@@ -190,16 +190,4 @@ func (s *Series) OldestTs() int64 {
 	}
 
 	return s.measurements[0].Timestamp()
-}
-
-func getCopiedValueInterface(measurement Measurement) Measurement {
-	switch measurement.(type) {
-	case *Numerical:
-		value := *measurement.(*Numerical)
-		return &value
-	case *Categorical:
-		value := *measurement.(*Categorical)
-		return &value
-	}
-	return nil
 }

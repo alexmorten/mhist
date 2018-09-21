@@ -65,6 +65,11 @@ func (pools *Pools) GetCategoricalMeasurement() *Categorical {
 	return pools.pools[MeasurementCategorical].Get().(*Categorical)
 }
 
+//PutMeasurement out of the correct pool
+func (pools *Pools) PutMeasurement(m Measurement) {
+	pools.pools[m.Type()].Put(m)
+}
+
 func grabSlicesFromStore(store *Store) (slices MeasurementSlices, ok bool) {
 	if store.IsOverSoftLimit() {
 		slices := store.ShrinkStore()

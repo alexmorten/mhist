@@ -10,6 +10,8 @@ type Measurement interface {
 	Timestamp() int64
 	Size() int
 	Reset()
+	Copy() Measurement
+	CopyFrom(p *Pools) Measurement
 }
 
 //Numerical represents a single meassured value in time
@@ -41,6 +43,20 @@ func (n *Numerical) Timestamp() int64 {
 	return n.Ts
 }
 
+//Copy of Measurement
+func (n *Numerical) Copy() Measurement {
+	value := *n
+	return &value
+}
+
+//CopyFrom pools for GC efficiency
+func (n *Numerical) CopyFrom(p *Pools) Measurement {
+	newNumerical := p.GetNumericalMeasurement()
+	newNumerical.Ts = n.Ts
+	newNumerical.Value = n.Value
+	return newNumerical
+}
+
 //Categorical represents a single categorical meassured value in time
 type Categorical struct {
 	Ts    int64
@@ -68,6 +84,20 @@ func (c *Categorical) Type() MeasurementType {
 //Timestamp of Measurement
 func (c *Categorical) Timestamp() int64 {
 	return c.Ts
+}
+
+//Copy of Measurement
+func (c *Categorical) Copy() Measurement {
+	value := *c
+	return &value
+}
+
+//CopyFrom pools for GC efficiency
+func (c *Categorical) CopyFrom(p *Pools) Measurement {
+	newCategorical := p.GetCategoricalMeasurement()
+	newCategorical.Ts = c.Ts
+	newCategorical.Value = c.Value
+	return newCategorical
 }
 
 //MeasurementType enum of different types of measurements
