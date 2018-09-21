@@ -19,10 +19,14 @@ type Server struct {
 
 //NewServer returns a new Server
 func NewServer(memorySize int) *Server {
-	store := NewStore(memorySize)
+	memStore := NewStore(memorySize)
+	pools := NewPools(memStore)
+	diskStore := NewDiskStore(pools)
+	memStore.AddSubscriber(diskStore)
+
 	return &Server{
-		store: store,
-		pools: NewPools(store),
+		store: memStore,
+		pools: pools,
 	}
 }
 

@@ -1,6 +1,7 @@
 package mhist
 
 import (
+	"strconv"
 	"unsafe"
 )
 
@@ -8,6 +9,7 @@ import (
 type Measurement interface {
 	Type() MeasurementType
 	Timestamp() int64
+	ValueString() string
 	Size() int
 	Reset()
 	Copy() Measurement
@@ -41,6 +43,11 @@ func (n *Numerical) Type() MeasurementType {
 //Timestamp of Measurement
 func (n *Numerical) Timestamp() int64 {
 	return n.Ts
+}
+
+//ValueString of Measurement
+func (n *Numerical) ValueString() string {
+	return strconv.FormatFloat(n.Value, 'f', -1, 64)
 }
 
 //Copy of Measurement
@@ -84,6 +91,11 @@ func (c *Categorical) Type() MeasurementType {
 //Timestamp of Measurement
 func (c *Categorical) Timestamp() int64 {
 	return c.Ts
+}
+
+//ValueString of Measurement
+func (c *Categorical) ValueString() string {
+	return c.Value
 }
 
 //Copy of Measurement
