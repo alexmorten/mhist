@@ -94,6 +94,10 @@ func (s *DiskStore) cleanup() {
 
 //Commit the buffered writes to actual disk
 func (s *DiskStore) commit() {
+	if s.block.Buffer.Len() == 0 {
+		return
+	}
+
 	fileList, err := GetSortedFileList()
 	if err != nil {
 		fmt.Printf("couldn't get file List: %v", err)
