@@ -11,8 +11,8 @@ import (
 )
 
 //GetSortedFileList gets the FileInfo list for data files (not the meta file)
-func GetSortedFileList() ([]*FileInfo, error) {
-	infoList := fileInfoSlice{}
+func GetSortedFileList() (FileInfoSlice, error) {
+	infoList := FileInfoSlice{}
 	files, err := ioutil.ReadDir(dataPath)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,8 @@ type FileInfo struct {
 	latestTs int64
 }
 
-type fileInfoSlice []*FileInfo
+//FileInfoSlice ...
+type FileInfoSlice []*FileInfo
 
 //WriteBlockToFile ...
 func WriteBlockToFile(b *Block) error {
@@ -84,8 +85,16 @@ func timestampsFromFileName(name string) (info *FileInfo, err error) {
 	return &FileInfo{name: name, oldestTs: oldestTs, latestTs: latestTs}, nil
 }
 
-func (s fileInfoSlice) Len() int      { return len(s) }
-func (s fileInfoSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s fileInfoSlice) Less(i, j int) bool {
+func (s FileInfoSlice) Len() int      { return len(s) }
+func (s FileInfoSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s FileInfoSlice) Less(i, j int) bool {
 	return s[i].latestTs < s[j].latestTs
+}
+
+//TotalSize of files
+func (s FileInfoSlice) TotalSize() (size int64) {
+	for _, info := range s {
+		size += info.size
+	}
+	return
 }

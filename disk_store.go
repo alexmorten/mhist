@@ -3,11 +3,13 @@ package mhist
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
 const maxBuffer = 12 * 1024
 const maxFileSize = 10 * 1024 * 1024
+const maxDiskSize = 1 * 1024 * 1024 * 1024
 
 var dataPath = "data"
 
@@ -113,6 +115,11 @@ func (s *DiskStore) commit() {
 		return
 	}
 	WriteBlockToFile(s.block)
+
+	if fileList.TotalSize() > maxDiskSize {
+		oldestFile := fileList[0]
+		os.Remove(filepath.Join(dataPath, oldestFile.name))
+	}
 }
 
 func (s *DiskStore) handleAdd(name string, m Measurement) {
