@@ -34,7 +34,7 @@ func NewDiskStore(pools *Pools) (*DiskStore, error) {
 	}
 
 	block := &DiskStore{
-		meta:     NewDiskMeta(),
+		meta:     InitMetaFromDisk(),
 		block:    &Block{},
 		addChan:  make(chan addMessage),
 		stopChan: make(chan struct{}),
