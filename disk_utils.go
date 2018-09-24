@@ -1,0 +1,91 @@
+package mhist
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+)
+
+//GetSortedFileList gets the FileInfo list for data files (not the meta file)
+func GetSortedFileList() ([]*FileInfo, error) {
+	infoList := fileInfoSlice{}
+	files, err := ioutil.ReadDir(dataPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, f := range files {
+		info, err := timestampsFromFileName(f.Name())
+		if err != nil {
+			continue
+		}
+		info.size = f.Size()
+		infoList = append(infoList, info)
+	}
+	sort.Sort(infoList)
+	return infoList, nil
+}
+
+//FileInfo descibes file info
+type FileInfo struct {
+	name     string
+	size     int64
+	oldestTs int64
+	latestTs int64
+}
+
+type fileInfoSlice []*FileInfo
+
+//WriteBlockToFile ...
+func WriteBlockToFile(b *Block) error {
+	return ioutil.WriteFile(filepath.Join(dataPath, fileName(b)), b.Buffer.Bytes(), os.ModePerm)
+}
+
+//AppendBlockToFile ...
+func AppendBlockToFile(info *FileInfo, block *Block) error {
+	f, err := os.OpenFile(filepath.Join(dataPath, info.name), os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(block.Buffer.Bytes())
+	if err != nil {
+		return err
+	}
+	return os.Rename(filepath.Join(dataPath, info.name), filepath.Join(dataPath, fileNameFromTs(info.oldestTs, block.LatestTs())))
+}
+
+func fileName(b *Block) string {
+	return fileNameFromTs(b.OldestTs(), b.LatestTs())
+}
+func fileNameFromTs(oldestTs, latestTs int64) string {
+	return fmt.Sprintf("%v-%v.csv", oldestTs, latestTs)
+}
+
+func timestampsFromFileName(name string) (info *FileInfo, err error) {
+	var reg = regexp.MustCompile(`(\d+)-(\d+)`)
+	matches := reg.FindStringSubmatch(name)
+	if len(matches) != 3 {
+		return nil, fmt.Errorf("file does not match regexp correctly: %v", matches)
+	}
+
+	oldestTs, err := strconv.ParseInt(matches[1], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	latestTs, err := strconv.ParseInt(matches[2], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FileInfo{name: name, oldestTs: oldestTs, latestTs: latestTs}, nil
+}
+
+func (s fileInfoSlice) Len() int      { return len(s) }
+func (s fileInfoSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s fileInfoSlice) Less(i, j int) bool {
+	return s[i].latestTs < s[j].latestTs
+}

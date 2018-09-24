@@ -3,60 +3,128 @@ package mhist
 import (
 	"fmt"
 	"os"
-	"sync"
+	"time"
 )
+
+const maxBuffer = 12 * 1024
+const maxFileSize = 10 * 1024 * 1024
 
 var dataPath = "data"
 
-//DiskStore handles writes and reads from disk
+//DiskStore handles buffered writes to Disk
 type DiskStore struct {
+	block    *Block
+	meta     *DiskMeta
 	pools    *Pools
-	blockMap *sync.Map
-	sync.Mutex
+	addChan  chan addMessage
+	stopChan chan struct{}
 }
 
-//NewDiskStore initializes the disk store
-func NewDiskStore(pools *Pools) *DiskStore {
-	os.MkdirAll(dataPath, os.ModePerm)
-	return &DiskStore{
-		pools:    pools,
-		blockMap: &sync.Map{},
+type addMessage struct {
+	name        string
+	measurement Measurement
+	doneChan    chan struct{}
+}
+
+//NewDiskStore initializes the DiskBlockRoutine
+func NewDiskStore(pools *Pools) (*DiskStore, error) {
+	err := os.MkdirAll(dataPath, os.ModePerm)
+	if err != nil {
+		return nil, err
 	}
+
+	block := &DiskStore{
+		meta:     NewDiskMeta(),
+		block:    &Block{},
+		addChan:  make(chan addMessage),
+		stopChan: make(chan struct{}),
+		pools:    pools,
+	}
+
+	go block.Listen()
+	return block, nil
 }
 
 //Notify DiskStore about new Measurement
 func (s *DiskStore) Notify(name string, m Measurement) {
 	ownMeasurement := m.CopyFrom(s.pools)
-
-	fmt.Println(ownMeasurement)
-	block, err := s.GetBlock(name, ownMeasurement.Type())
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	block.Add(ownMeasurement)
+	s.Add(name, m)
 	s.pools.PutMeasurement(ownMeasurement)
 }
 
-//GetBlock thread safely
-func (s *DiskStore) GetBlock(name string, measurementType MeasurementType) (*DiskBlock, error) {
-	block, ok := s.blockMap.Load(name)
-	if ok && block != nil {
-		return block.(*DiskBlock), nil
+//Add measurement to block
+func (s *DiskStore) Add(name string, measurement Measurement) {
+	doneChan := make(chan struct{})
+	s.addChan <- addMessage{
+		name:        name,
+		doneChan:    doneChan,
+		measurement: measurement,
 	}
+	<-doneChan
+}
 
-	s.Lock()
-	defer s.Unlock()
+//Shutdown DiskBlock goroutine
+func (s *DiskStore) Shutdown() {
+	s.stopChan <- struct{}{}
+}
 
-	//Make sure we haven't added a block by chance yet
-	block, ok = s.blockMap.Load(name)
-	if ok && block != nil {
-		return block.(*DiskBlock), nil
+//Listen for new measurements
+func (s *DiskStore) Listen() {
+	timer := time.NewTimer(10 * time.Second)
+loop:
+	for {
+		timer.Stop()
+		timer.Reset(time.Second * 5)
+		select {
+		case <-s.stopChan:
+			s.commit()
+			break loop
+		case <-timer.C:
+			s.commit()
+		case message := <-s.addChan:
+			s.handleAdd(message.name, message.measurement)
+			message.doneChan <- struct{}{}
+		}
 	}
-	createdBlock, err := NewDiskBlock(measurementType, name)
+	s.cleanup()
+}
+
+func (s *DiskStore) cleanup() {
+}
+
+//Commit the buffered writes to actual disk
+func (s *DiskStore) commit() {
+	fileList, err := GetSortedFileList()
 	if err != nil {
-		return nil, err
+		fmt.Printf("couldn't get file List: %v", err)
 	}
-	s.blockMap.Store(name, createdBlock)
-	return createdBlock, nil
+	defer s.block.Reset()
+	if len(fileList) == 0 {
+		WriteBlockToFile(s.block)
+		return
+	}
+	latestFile := fileList[len(fileList)-1]
+	if latestFile.size < maxFileSize {
+		AppendBlockToFile(latestFile, s.block)
+		return
+	}
+	WriteBlockToFile(s.block)
+}
+
+func (s *DiskStore) handleAdd(name string, m Measurement) {
+	id, err := s.meta.GetOrCreateID(name, m.Type())
+	if err != nil {
+		//measurement is probably of different type than it used to be, just ignore for now
+		return
+	}
+	csvLineBytes, err := constructCsvLine(id, m)
+	if err != nil {
+		//ignore bad values
+		return
+	}
+	s.block.AddBytes(m.Timestamp(), csvLineBytes)
+	if s.block.Buffer.Len() > maxBuffer {
+		s.commit()
+	}
+
 }

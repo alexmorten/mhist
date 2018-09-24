@@ -21,7 +21,10 @@ type Server struct {
 func NewServer(memorySize int) *Server {
 	memStore := NewStore(memorySize)
 	pools := NewPools(memStore)
-	diskStore := NewDiskStore(pools)
+	diskStore, err := NewDiskStore(pools)
+	if err != nil {
+		panic(err)
+	}
 	memStore.AddSubscriber(diskStore)
 
 	return &Server{
