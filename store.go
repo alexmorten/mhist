@@ -48,9 +48,9 @@ func (s *Store) GetSeries(name string, measurementType MeasurementType) *Series 
 
 //Add named measurement to correct Series
 func (s *Store) Add(name string, m Measurement) {
-	s.GetSeries(name, m.Type()).Add(m)
-
 	s.subscribers.NotifyAll(name, m)
+
+	s.GetSeries(name, m.Type()).Add(m)
 }
 
 //GetAllMeasurementsInTimeRange for all series
