@@ -17,14 +17,14 @@ func TestSeries(t *testing.T) {
 				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				s.Add(&mhist.Numerical{Ts: 1000})
 				s.Add(&mhist.Categorical{Ts: 2000})
-				returnedMeasurements := s.GetMeasurementsInTimeRange(0, 3000)
+				returnedMeasurements, _ := s.GetMeasurementsInTimeRange(0, 3000)
 				So(len(returnedMeasurements), ShouldEqual, 1)
 			})
 		})
 		Convey("GetMeasurementsInTimeRange()", func() {
 			Convey("returns no measurements if empty", func() {
 				s := mhist.NewSeries(mhist.MeasurementNumerical)
-				returnedMeasurements := s.GetMeasurementsInTimeRange(1005, 1035)
+				returnedMeasurements, _ := s.GetMeasurementsInTimeRange(1005, 1035)
 				s.Shutdown()
 
 				So(len(returnedMeasurements), ShouldEqual, 0)
@@ -32,7 +32,7 @@ func TestSeries(t *testing.T) {
 			Convey("returns correct measurements if given range is inside", func() {
 				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
-				returnedMeasurements := s.GetMeasurementsInTimeRange(1005, 1035)
+				returnedMeasurements, _ := s.GetMeasurementsInTimeRange(1005, 1035)
 
 				s.Shutdown()
 				So(len(returnedMeasurements), ShouldEqual, 3)
@@ -40,7 +40,7 @@ func TestSeries(t *testing.T) {
 			Convey("returns all measurements if it is completly inside given range", func() {
 				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
-				returnedMeasurements := s.GetMeasurementsInTimeRange(500, 4000)
+				returnedMeasurements, _ := s.GetMeasurementsInTimeRange(500, 4000)
 
 				s.Shutdown()
 				So(len(returnedMeasurements), ShouldEqual, 5)
@@ -49,7 +49,7 @@ func TestSeries(t *testing.T) {
 			Convey("returns no measurements if given range has no overlap", func() {
 				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
-				returnedMeasurements := s.GetMeasurementsInTimeRange(3000, 4000)
+				returnedMeasurements, _ := s.GetMeasurementsInTimeRange(3000, 4000)
 
 				s.Shutdown()
 				So(len(returnedMeasurements), ShouldEqual, 0)
@@ -58,10 +58,18 @@ func TestSeries(t *testing.T) {
 			Convey("returns correct if given range has partialy overlaps", func() {
 				s := mhist.NewSeries(mhist.MeasurementNumerical)
 				testhelpers.AddMeasurementsToSeries(s)
-				returnedMeasurements := s.GetMeasurementsInTimeRange(1025, 4000)
+				returnedMeasurements, _ := s.GetMeasurementsInTimeRange(1025, 4000)
 
 				s.Shutdown()
 				So(len(returnedMeasurements), ShouldEqual, 2)
+			})
+			Convey("returns incomplete = true if start Ts is below lowest measurement in series", func() {
+				s := mhist.NewSeries(mhist.MeasurementNumerical)
+				testhelpers.AddMeasurementsToSeries(s)
+				_, incomplete := s.GetMeasurementsInTimeRange(0, 4000)
+
+				s.Shutdown()
+				So(incomplete, ShouldEqual, true)
 			})
 		})
 

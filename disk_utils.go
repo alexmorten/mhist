@@ -30,6 +30,21 @@ func GetSortedFileList() (FileInfoSlice, error) {
 	return infoList, nil
 }
 
+//GetFilesInTimeRange gets the FileInfo list for data files in the time range
+func GetFilesInTimeRange(start, end int64) (FileInfoSlice, error) {
+	allFiles, err := GetSortedFileList()
+	if err != nil {
+		return nil, err
+	}
+	filesInTimeRange := FileInfoSlice{}
+	for _, fileInfo := range allFiles {
+		if fileInfo.isInTimeRange(start, end) {
+			filesInTimeRange = append(filesInTimeRange, fileInfo)
+		}
+	}
+	return filesInTimeRange, nil
+}
+
 //FileInfo descibes file info
 type FileInfo struct {
 	name     string
@@ -97,4 +112,8 @@ func (s FileInfoSlice) TotalSize() (size int64) {
 		size += info.size
 	}
 	return
+}
+
+func (i *FileInfo) isInTimeRange(start, end int64) bool {
+	return (i.latestTs > start && !(i.oldestTs > end))
 }

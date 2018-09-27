@@ -50,7 +50,7 @@ func NewDiskMeta() *DiskMeta {
 	}
 }
 
-//GetOrCreateID ...
+//GetOrCreateID for name, checks if MeasurementType is correct
 func (m *DiskMeta) GetOrCreateID(name string, t MeasurementType) (int64, error) {
 	m.RLock()
 	id := m.NameToID[name]
@@ -80,18 +80,28 @@ func (m *DiskMeta) GetOrCreateID(name string, t MeasurementType) (int64, error) 
 	return m.HighestID, nil
 }
 
-//GetNameForID ...
+//GetNameForID to translate back form csv to record
 func (m *DiskMeta) GetNameForID(id int64) string {
 	m.RLock()
 	defer m.RUnlock()
 	return m.IDToName[id]
 }
 
-//GetTypeForID ...
+//GetTypeForID to translate back form csv to record
 func (m *DiskMeta) GetTypeForID(id int64) MeasurementType {
 	m.RLock()
 	defer m.RUnlock()
 	return m.IDToType[id]
+}
+
+//GetAllStoredNames from meta
+func (m *DiskMeta) GetAllStoredNames() (names []string) {
+	m.RLock()
+	defer m.RUnlock()
+	for name := range m.NameToID {
+		names = append(names, name)
+	}
+	return
 }
 
 func (m *DiskMeta) sync() {

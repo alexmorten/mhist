@@ -1,9 +1,11 @@
 package mhist
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -19,6 +21,7 @@ type DiskStore struct {
 	meta     *DiskMeta
 	pools    *Pools
 	addChan  chan addMessage
+	readChan chan readMessage
 	stopChan chan struct{}
 }
 
@@ -26,6 +29,14 @@ type addMessage struct {
 	name        string
 	measurement Measurement
 	doneChan    chan struct{}
+}
+
+type readResult map[string][]Measurement
+
+type readMessage struct {
+	fromTs     int64
+	toTs       int64
+	resultChan chan readResult
 }
 
 //NewDiskStore initializes the DiskBlockRoutine
@@ -39,6 +50,7 @@ func NewDiskStore(pools *Pools) (*DiskStore, error) {
 		meta:     InitMetaFromDisk(),
 		block:    &Block{},
 		addChan:  make(chan addMessage),
+		readChan: make(chan readMessage),
 		stopChan: make(chan struct{}),
 		pools:    pools,
 	}
@@ -65,6 +77,22 @@ func (s *DiskStore) Add(name string, measurement Measurement) {
 	<-doneChan
 }
 
+//GetAllMeasurementsInTimeRange for all measurement names
+func (s *DiskStore) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Measurement {
+	resultChan := make(chan readResult)
+	s.readChan <- readMessage{
+		fromTs:     start,
+		toTs:       end,
+		resultChan: resultChan,
+	}
+	return <-resultChan
+}
+
+//GetAllStoredNames from meta
+func (s *DiskStore) GetAllStoredNames() []string {
+	return s.meta.GetAllStoredNames()
+}
+
 //Shutdown DiskBlock goroutine
 func (s *DiskStore) Shutdown() {
 	s.stopChan <- struct{}{}
@@ -72,17 +100,20 @@ func (s *DiskStore) Shutdown() {
 
 //Listen for new measurements
 func (s *DiskStore) Listen() {
-	timer := time.NewTimer(10 * time.Second)
+	timeBetweenWrites := 5 * time.Second
+	timer := time.NewTimer(timeBetweenWrites)
 loop:
 	for {
-		timer.Stop()
-		timer.Reset(time.Second * 5)
 		select {
 		case <-s.stopChan:
 			s.commit()
 			break loop
 		case <-timer.C:
 			s.commit()
+			timer.Stop()
+			timer.Reset(timeBetweenWrites)
+		case message := <-s.readChan:
+			message.resultChan <- s.handleRead(message.fromTs, message.toTs)
 		case message := <-s.addChan:
 			s.handleAdd(message.name, message.measurement)
 			message.doneChan <- struct{}{}
@@ -103,6 +134,7 @@ func (s *DiskStore) commit() {
 	fileList, err := GetSortedFileList()
 	if err != nil {
 		fmt.Printf("couldn't get file List: %v", err)
+		return
 	}
 	defer s.block.Reset()
 	if len(fileList) == 0 {
@@ -138,4 +170,73 @@ func (s *DiskStore) handleAdd(name string, m Measurement) {
 		s.commit()
 	}
 
+}
+
+func (s *DiskStore) handleRead(start, end int64) readResult {
+	result := readResult{}
+	files, err := GetFilesInTimeRange(start, end)
+	if err != nil {
+		fmt.Println(err)
+		return readResult{}
+	}
+
+	for _, file := range files {
+		f, err := os.Open(filepath.Join(dataPath, file.name))
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		csvReader := csv.NewReader(f)
+		lines, err := csvReader.ReadAll()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+	lineLoop:
+		for _, line := range lines {
+			if len(line) != 3 {
+				continue
+			}
+			id, err := strconv.ParseInt(line[0], 10, 64)
+			if err != nil {
+				continue
+			}
+			ts, err := strconv.ParseInt(line[1], 10, 64)
+			if err != nil || ts > end || ts < start {
+				continue
+			}
+			valueString := line[2]
+			name := s.meta.GetNameForID(id)
+			if name == "" {
+				continue
+			}
+
+			measurementType := s.meta.GetTypeForID(id)
+			if measurementType == 0 {
+				continue
+			}
+
+			var measurement Measurement
+			switch measurementType {
+			case MeasurementNumerical:
+				value, err := strconv.ParseFloat(valueString, 64)
+				if err != nil {
+					continue lineLoop
+				}
+				measurement = &Numerical{
+					Ts:    ts,
+					Value: value,
+				}
+
+			case MeasurementCategorical:
+				measurement = &Categorical{
+					Ts:    ts,
+					Value: valueString,
+				}
+			}
+			result[name] = append(result[name], measurement)
+		}
+	}
+
+	return result
 }

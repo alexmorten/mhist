@@ -10,6 +10,7 @@ type Store struct {
 	sync.Mutex
 	maxSize     int
 	subscribers SubscriberSlice
+	diskStore   *DiskStore
 }
 
 //NewStore ..
@@ -19,6 +20,11 @@ func NewStore(maxSize int) *Store {
 		maxSize:   maxSize,
 	}
 	return s
+}
+
+//SetDiskStore on store
+func (s *Store) SetDiskStore(ds *DiskStore) {
+	s.diskStore = ds
 }
 
 //AddSubscriber to Store
@@ -54,12 +60,33 @@ func (s *Store) Add(name string, m Measurement) {
 }
 
 //GetAllMeasurementsInTimeRange for all series
+//TODO: change interface of diskStore to only read necessary parts, for now read all if any in memroy series is incomplete
 func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Measurement {
 	m := map[string][]Measurement{}
+	anyIncomplete := false
 
 	s.forEachSeries(func(name string, series *Series) {
-		m[name] = series.GetMeasurementsInTimeRange(start, end)
+		measurements, incomplete := series.GetMeasurementsInTimeRange(start, end)
+		m[name] = measurements
+		if incomplete {
+			anyIncomplete = true
+		}
 	})
+
+	if s.diskStore != nil {
+		allNames := s.diskStore.GetAllStoredNames()
+		anyNameNotIncluded := false
+		for _, name := range allNames {
+			if len(m[name]) == 0 {
+				anyNameNotIncluded = true
+				break
+			}
+		}
+
+		if anyIncomplete || anyNameNotIncluded {
+			return s.diskStore.GetAllMeasurementsInTimeRange(start, end)
+		}
+	}
 
 	return m
 }

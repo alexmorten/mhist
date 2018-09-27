@@ -26,7 +26,7 @@ func NewServer(memorySize int) *Server {
 		panic(err)
 	}
 	memStore.AddSubscriber(diskStore)
-
+	memStore.SetDiskStore(diskStore)
 	return &Server{
 		store: memStore,
 		pools: pools,
