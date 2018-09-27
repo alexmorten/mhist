@@ -15,7 +15,7 @@ const maxDiskSize = 1 * 1024 * 1024 * 1024
 
 var dataPath = "data"
 
-//DiskStore handles buffered writes to Disk
+//DiskStore handles buffered writes to and reads from Disk
 type DiskStore struct {
 	block    *Block
 	meta     *DiskMeta
