@@ -10,6 +10,7 @@ type Measurement interface {
 	Type() MeasurementType
 	Timestamp() int64
 	ValueString() string
+	ValueInterface() interface{}
 	Size() int
 	Reset()
 	Copy() Measurement
@@ -43,6 +44,11 @@ func (n *Numerical) Type() MeasurementType {
 //Timestamp of Measurement
 func (n *Numerical) Timestamp() int64 {
 	return n.Ts
+}
+
+//ValueInterface of Measurement
+func (n *Numerical) ValueInterface() interface{} {
+	return n.Value
 }
 
 //ValueString of Measurement
@@ -91,6 +97,11 @@ func (c *Categorical) Type() MeasurementType {
 //Timestamp of Measurement
 func (c *Categorical) Timestamp() int64 {
 	return c.Ts
+}
+
+//ValueInterface of Measurement
+func (c *Categorical) ValueInterface() interface{} {
+	return c.Value
 }
 
 //ValueString of Measurement
