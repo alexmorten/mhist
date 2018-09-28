@@ -58,7 +58,7 @@ type FileInfoSlice []*FileInfo
 
 //WriteBlockToFile ...
 func WriteBlockToFile(b *Block) error {
-	return ioutil.WriteFile(filepath.Join(dataPath, fileName(b)), b.Buffer.Bytes(), os.ModePerm)
+	return ioutil.WriteFile(filepath.Join(dataPath, fileNameFromTs(b.OldestTs(), b.LatestTs())), b.Buffer.Bytes(), os.ModePerm)
 }
 
 //AppendBlockToFile ...
@@ -74,9 +74,6 @@ func AppendBlockToFile(info *FileInfo, block *Block) error {
 	return os.Rename(filepath.Join(dataPath, info.name), filepath.Join(dataPath, fileNameFromTs(info.oldestTs, block.LatestTs())))
 }
 
-func fileName(b *Block) string {
-	return fileNameFromTs(b.OldestTs(), b.LatestTs())
-}
 func fileNameFromTs(oldestTs, latestTs int64) string {
 	return fmt.Sprintf("%v-%v.csv", oldestTs, latestTs)
 }
