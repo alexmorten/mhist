@@ -66,9 +66,9 @@ func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Mea
 	anyIncomplete := false
 
 	s.forEachSeries(func(name string, series *Series) {
-		measurements, incomplete := series.GetMeasurementsInTimeRange(start, end)
+		measurements, possiblyIncomplete := series.GetMeasurementsInTimeRange(start, end)
 		m[name] = measurements
-		if incomplete {
+		if possiblyIncomplete {
 			anyIncomplete = true
 		}
 	})

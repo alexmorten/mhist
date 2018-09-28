@@ -61,7 +61,7 @@ func (s *Series) Shutdown() {
 
 //GetMeasurementsInTimeRange returns the measurements in approx. the given timerange
 ////assumes equally distributed measurements over time
-func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) (measurements []Measurement, incomplete bool) {
+func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) (measurements []Measurement, possiblyIncomplete bool) {
 	s.rwLock.RLock()
 	defer s.rwLock.RUnlock()
 	startIndex, err := s.calcIndexAbove(start)
@@ -80,8 +80,7 @@ func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) (measurement
 		measurements[i] = s.measurements[i+startIndex].Copy()
 	}
 	if startIndex == 0 {
-		//we can't be sure to have answered everyting
-		incomplete = true
+		possiblyIncomplete = true
 	}
 	return
 }
