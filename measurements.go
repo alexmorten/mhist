@@ -117,8 +117,8 @@ type MeasurementType int
 
 const (
 	//MeasurementNumerical for measurements that are numerical and interpolateable
-	MeasurementNumerical MeasurementType = iota
+	MeasurementNumerical MeasurementType = iota + 1 //start at 1 so we can differenciate from zero value
 
-	//MeasurementCategorical for measurements that are non numerical and not interpolateable (TBD)
+	//MeasurementCategorical for measurements that are non numerical and not interpolateable
 	MeasurementCategorical
 )
