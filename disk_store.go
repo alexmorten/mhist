@@ -118,10 +118,6 @@ loop:
 			message.doneChan <- struct{}{}
 		}
 	}
-	s.cleanup()
-}
-
-func (s *DiskStore) cleanup() {
 }
 
 //Commit the buffered writes to actual disk
