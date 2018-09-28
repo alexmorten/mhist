@@ -1,12 +1,17 @@
 package mhist
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
 
-const fieldSeperatorSize = len(",")
+const fieldSeperatorRune = ','
+const fieldSeperator = string(fieldSeperatorRune)
+
+const fieldSeperatorSize = len(fieldSeperator)
 
 const newLineSize = len("\n")
 
@@ -23,11 +28,17 @@ func constructCsvLine(id int64, m Measurement) ([]byte, error) {
 	byteSlice := make([]byte, 0, byteSize)
 
 	byteSlice = append(byteSlice, []byte(idString)...)
-	byteSlice = append(byteSlice, []byte(",")...)
+	byteSlice = append(byteSlice, []byte(fieldSeperator)...)
 	byteSlice = append(byteSlice, []byte(tsString)...)
-	byteSlice = append(byteSlice, []byte(",")...)
+	byteSlice = append(byteSlice, []byte(fieldSeperator)...)
 	byteSlice = append(byteSlice, []byte(value)...)
 	byteSlice = append(byteSlice, []byte("\n")...)
 
 	return byteSlice, nil
+}
+
+func newCsvReader(r io.Reader) *csv.Reader {
+	reader := csv.NewReader(r)
+	reader.Comma = fieldSeperatorRune
+	return reader
 }

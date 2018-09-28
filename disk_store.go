@@ -1,7 +1,6 @@
 package mhist
 
 import (
-	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -186,7 +185,7 @@ func (s *DiskStore) handleRead(start, end int64) readResult {
 			fmt.Println(err)
 			continue
 		}
-		csvReader := csv.NewReader(f)
+		csvReader := newCsvReader(f)
 		lines, err := csvReader.ReadAll()
 		if err != nil {
 			fmt.Println(err)
