@@ -15,6 +15,8 @@ const fieldSeperatorSize = len(fieldSeperator)
 
 const newLineSize = len("\n")
 
+//constructCsvLine constructs a byteSlice, that if converted to a string is a csv line with `<id>,<timestamp>,<value>\n`
+//it avoids unnecessary string allocations by making a slice of len = 0 and a capacity (=length of underlying array) equal to what it needs for the whole line
 func constructCsvLine(id int64, m Measurement) ([]byte, error) {
 	value := m.ValueString()
 	tsString := strconv.FormatInt(m.Timestamp(), 10)
