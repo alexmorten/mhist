@@ -48,32 +48,39 @@ func (h *Handler) Listen() {
 			fmt.Println(err)
 			continue
 		}
-		reader := bufio.NewReader(conn)
-		byteSlice, err := reader.ReadSlice('\n')
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		m := &SubscribtionMessage{}
-		err = json.Unmarshal(byteSlice, m)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		connectionWrapper := &Connection{
-			Socket: conn,
-		}
-		if m.Publisher {
-			connectionWrapper.OnNewMessage(func(byteSlice []byte) {
-				if h.onNewMessage != nil {
-					h.onNewMessage(byteSlice, m.Replication)
-				}
-			})
-		} else {
-			h.outboundCollection.AddConnection(connectionWrapper)
-			connectionWrapper.OnConnectionClose(func() {
-				h.outboundCollection.RemoveConnection(connectionWrapper)
-			})
-		}
+		go h.handleNewConnection(conn)
 	}
+}
+
+func (h *Handler) handleNewConnection(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	byteSlice, err := reader.ReadSlice('\n')
+	if err != nil {
+		fmt.Println(err)
+		conn.Close()
+		return
+	}
+	m := &SubscribtionMessage{}
+	err = json.Unmarshal(byteSlice, m)
+	if err != nil {
+		fmt.Println(err)
+		conn.Close()
+		return
+	}
+	connectionWrapper := &Connection{
+		Socket: conn,
+	}
+	if m.Publisher {
+		connectionWrapper.OnNewMessage(func(byteSlice []byte) {
+			if h.onNewMessage != nil {
+				h.onNewMessage(byteSlice, m.Replication)
+			}
+		})
+	} else {
+		h.outboundCollection.AddConnection(connectionWrapper)
+		connectionWrapper.OnConnectionClose(func() {
+			h.outboundCollection.RemoveConnection(connectionWrapper)
+		})
+	}
+	connectionWrapper.Listen()
 }
