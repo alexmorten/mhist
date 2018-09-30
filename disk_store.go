@@ -9,19 +9,19 @@ import (
 )
 
 const maxBuffer = 12 * 1024
-const maxFileSize = 10 * 1024 * 1024
-const maxDiskSize = 1 * 1024 * 1024 * 1024
 
 var dataPath = "data"
 
 //DiskStore handles buffered writes to and reads from Disk
 type DiskStore struct {
-	block    *Block
-	meta     *DiskMeta
-	pools    *Pools
-	addChan  chan addMessage
-	readChan chan readMessage
-	stopChan chan struct{}
+	block       *Block
+	meta        *DiskMeta
+	pools       *Pools
+	addChan     chan addMessage
+	readChan    chan readMessage
+	stopChan    chan struct{}
+	maxFileSize int64
+	maxDiskSize int64
 }
 
 type addMessage struct {
@@ -39,19 +39,21 @@ type readMessage struct {
 }
 
 //NewDiskStore initializes the DiskBlockRoutine
-func NewDiskStore(pools *Pools) (*DiskStore, error) {
+func NewDiskStore(pools *Pools, maxFileSize, maxDiskSize int) (*DiskStore, error) {
 	err := os.MkdirAll(dataPath, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
 
 	block := &DiskStore{
-		meta:     InitMetaFromDisk(),
-		block:    &Block{},
-		addChan:  make(chan addMessage),
-		readChan: make(chan readMessage),
-		stopChan: make(chan struct{}),
-		pools:    pools,
+		meta:        InitMetaFromDisk(),
+		block:       &Block{},
+		addChan:     make(chan addMessage),
+		readChan:    make(chan readMessage),
+		stopChan:    make(chan struct{}),
+		pools:       pools,
+		maxFileSize: int64(maxFileSize),
+		maxDiskSize: int64(maxDiskSize),
 	}
 
 	go block.Listen()
@@ -137,13 +139,13 @@ func (s *DiskStore) commit() {
 		return
 	}
 	latestFile := fileList[len(fileList)-1]
-	if latestFile.size < maxFileSize {
+	if latestFile.size < s.maxFileSize {
 		AppendBlockToFile(latestFile, s.block)
 		return
 	}
 	WriteBlockToFile(s.block)
 
-	if fileList.TotalSize() > maxDiskSize {
+	if fileList.TotalSize() > s.maxDiskSize {
 		oldestFile := fileList[0]
 		os.Remove(filepath.Join(dataPath, oldestFile.name))
 	}

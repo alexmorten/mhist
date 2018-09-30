@@ -17,11 +17,20 @@ type Server struct {
 	waitGroup   *sync.WaitGroup
 }
 
+//ServerConfig ...
+type ServerConfig struct {
+	HTTPPort             int
+	TCPPort              int
+	MemorySize           int
+	DiskSize             int
+	ReplicationAddresses []string
+}
+
 //NewServer returns a new Server
-func NewServer(memorySize int) *Server {
-	memStore := NewStore(memorySize)
+func NewServer(config ServerConfig) *Server {
+	memStore := NewStore(config.MemorySize)
 	pools := NewPools(memStore)
-	diskStore, err := NewDiskStore(pools)
+	diskStore, err := NewDiskStore(pools, config.MemorySize, config.DiskSize)
 	if err != nil {
 		panic(err)
 	}
@@ -33,15 +42,19 @@ func NewServer(memorySize int) *Server {
 		pools:     pools,
 		waitGroup: &sync.WaitGroup{},
 	}
-	tcpHandler := NewTCPHandler(server, 6667)
+	tcpHandler := NewTCPHandler(server, config.TCPPort)
 	server.tcpHandler = tcpHandler
 	memStore.AddSubscriber(tcpHandler)
 
 	httpHandler := &HTTPHandler{
 		Server: server,
+		Port:   config.HTTPPort,
 	}
 	server.httpHandler = httpHandler
-
+	for _, address := range config.ReplicationAddresses {
+		replication := NewReplication(address)
+		memStore.AddReplication(replication)
+	}
 	return server
 }
 

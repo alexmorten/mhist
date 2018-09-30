@@ -14,12 +14,13 @@ import (
 //HTTPHandler handles http connections
 type HTTPHandler struct {
 	Server *Server
+	Port   int
 }
 
 //Run the handler
 func (h *HTTPHandler) Run() {
 	http.Handle("/", h)
-	err := http.ListenAndServe(":6666", nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%v", h.Port), nil)
 	if err != nil {
 		fmt.Println(err)
 	}
