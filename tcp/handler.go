@@ -69,6 +69,7 @@ func (h *Handler) handleNewConnection(conn net.Conn) {
 	}
 	connectionWrapper := &Connection{
 		Socket: conn,
+		Reader: reader,
 	}
 	if m.Publisher {
 		connectionWrapper.OnNewMessage(func(byteSlice []byte) {

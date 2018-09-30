@@ -8,6 +8,7 @@ import (
 //Connection handles reads and writes to the connection
 type Connection struct {
 	Socket            net.Conn
+	Reader            *bufio.Reader
 	onNewMessage      func(message []byte)
 	onConnectionClose func()
 }
@@ -29,9 +30,8 @@ func (c *Connection) Write(byteSlice []byte) {
 
 //Listen for new messages
 func (c *Connection) Listen() {
-	reader := bufio.NewReader(c.Socket)
 	for {
-		byteSlice, err := reader.ReadSlice('\n')
+		byteSlice, err := c.Reader.ReadSlice('\n')
 		if err != nil {
 			break
 		}
