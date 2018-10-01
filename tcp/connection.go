@@ -25,7 +25,7 @@ func (c *Connection) OnNewMessage(f func([]byte)) {
 
 //Write bytes to connection
 func (c *Connection) Write(byteSlice []byte) {
-	c.Socket.Write(append(byteSlice, ','))
+	c.Socket.Write(append(byteSlice, '\n'))
 }
 
 //Listen for new messages
