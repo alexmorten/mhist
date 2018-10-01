@@ -22,7 +22,7 @@ func NewHandler(address string) *Handler {
 	}
 }
 
-//OnNewMessage calls f with the message and states wether or not the message is from replication
+//OnNewMessage calls f with the message and states whether or not the message is from replication
 func (h *Handler) OnNewMessage(f func(message []byte, isReplication bool)) {
 	h.onNewMessage = f
 }
