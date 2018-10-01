@@ -17,7 +17,6 @@ type Client struct {
 	buffer              *bytes.Buffer
 	conn                net.Conn
 	sync.RWMutex
-	connected bool
 }
 
 //NewClient initializes a new client
