@@ -30,5 +30,5 @@ func (r *Replication) Notify(name string, measurement Measurement) {
 		fmt.Println(err)
 		return
 	}
-	r.client.Write(byteSlice)
+	go r.client.Write(byteSlice)
 }
