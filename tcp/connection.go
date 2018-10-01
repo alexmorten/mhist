@@ -18,7 +18,7 @@ func (c *Connection) OnConnectionClose(f func()) {
 	c.onConnectionClose = f
 }
 
-//OnNewMessage call f when the connection is finished
+//OnNewMessage call f with new message
 func (c *Connection) OnNewMessage(f func([]byte)) {
 	c.onNewMessage = f
 }
