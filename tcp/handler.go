@@ -60,7 +60,7 @@ func (h *Handler) handleNewConnection(conn net.Conn) {
 		conn.Close()
 		return
 	}
-	m := &SubscribtionMessage{}
+	m := &SubscriptionMessage{}
 	err = json.Unmarshal(byteSlice, m)
 	if err != nil {
 		fmt.Println(err)

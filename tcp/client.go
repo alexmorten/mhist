@@ -13,7 +13,7 @@ import (
 //Client for tcp connections. Automatically retries establishing connections
 type Client struct {
 	Address             string
-	subscribtionMessage *SubscribtionMessage
+	subscriptionMessage *SubscriptionMessage
 	buffer              *bytes.Buffer
 	conn                net.Conn
 	sync.RWMutex
@@ -24,7 +24,7 @@ func NewClient(address string) *Client {
 	client := &Client{
 		Address:             address,
 		buffer:              &bytes.Buffer{},
-		subscribtionMessage: &SubscribtionMessage{Publisher: true},
+		subscriptionMessage: &SubscriptionMessage{Publisher: true},
 	}
 	return client
 }
@@ -32,7 +32,7 @@ func NewClient(address string) *Client {
 //NewReplicatorClient sets the subscriptionMessage correctly for a replication connection
 func NewReplicatorClient(address string) *Client {
 	client := NewClient(address)
-	client.subscribtionMessage.Replication = true
+	client.subscriptionMessage.Replication = true
 	return client
 }
 
@@ -47,7 +47,7 @@ func (c *Client) Connect() {
 			time.Sleep(2 * time.Second)
 			continue
 		}
-		message, err := json.Marshal(c.subscribtionMessage)
+		message, err := json.Marshal(c.subscriptionMessage)
 		if err != nil {
 			panic(err)
 		}
