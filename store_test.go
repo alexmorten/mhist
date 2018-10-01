@@ -13,10 +13,10 @@ func TestStore(t *testing.T) {
 		Convey("returns the correct map", func() {
 			s := mhist.NewStore(100 * 1024 * 1024)
 			for _, m := range testhelpers.GetSampleMeasurements(5, 1000, 20) {
-				s.Add("temperature", m)
+				s.Add("temperature", m, false)
 			}
 			for _, m := range testhelpers.GetSampleMeasurements(6, 1040, 20) {
-				s.Add("acceleration", m)
+				s.Add("acceleration", m, false)
 			}
 			returnedMap := s.GetAllMeasurementsInTimeRange(1020, 1060)
 			So(len(returnedMap["temperature"]), ShouldEqual, 3)

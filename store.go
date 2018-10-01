@@ -8,9 +8,10 @@ import (
 type Store struct {
 	seriesMap *sync.Map
 	sync.Mutex
-	maxSize     int
-	subscribers SubscriberSlice
-	diskStore   *DiskStore
+	maxSize      int
+	subscribers  SubscriberSlice
+	replications SubscriberSlice
+	diskStore    *DiskStore
 }
 
 //NewStore ..
@@ -30,6 +31,11 @@ func (s *Store) SetDiskStore(ds *DiskStore) {
 //AddSubscriber to Store
 func (s *Store) AddSubscriber(sub Subscriber) {
 	s.subscribers = append(s.subscribers, sub)
+}
+
+//AddReplication to Store
+func (s *Store) AddReplication(rep Subscriber) {
+	s.replications = append(s.replications, rep)
 }
 
 //GetSeries thread safely
@@ -53,7 +59,10 @@ func (s *Store) GetSeries(name string, measurementType MeasurementType) *Series 
 }
 
 //Add named measurement to correct Series
-func (s *Store) Add(name string, m Measurement) {
+func (s *Store) Add(name string, m Measurement, isReplication bool) {
+	if !isReplication {
+		s.replications.NotifyAll(name, m)
+	}
 	s.subscribers.NotifyAll(name, m)
 
 	s.GetSeries(name, m.Type()).Add(m)
