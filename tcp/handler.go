@@ -14,7 +14,7 @@ type Handler struct {
 	onNewMessage       func(message []byte, isReplication bool)
 }
 
-//NewHandler with initializaed connection collection, Listen() still needs to be called
+//NewHandler with initalized connection collection, Listen() still needs to be called
 func NewHandler(address string) *Handler {
 	return &Handler{
 		Address:            address,
