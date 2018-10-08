@@ -9,4 +9,4 @@ RUN mkdir app
 COPY --from=builder /go/src/github.com/codeuniversity/ppp-mhist/mhist /app
 WORKDIR /app
 CMD ["./mhist"]
-EXPOSE 6666
+EXPOSE 6666 6667
