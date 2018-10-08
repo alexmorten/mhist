@@ -15,7 +15,7 @@ type TCPHandler struct {
 
 //NewTCPHandler sets the wrapped handlers callbacks correctly, Run() still has to be called
 func NewTCPHandler(server *Server, port int) *TCPHandler {
-	wrappedHandler := tcp.NewHandler(fmt.Sprintf("localhost:%v", port))
+	wrappedHandler := tcp.NewHandler(fmt.Sprintf("0.0.0.0:%v", port))
 	wrappedHandler.OnNewMessage(func(byteSlice []byte, isReplication bool) {
 		server.handleNewMessage(byteSlice, isReplication, func(err error, _ int) {
 			if err != nil {
