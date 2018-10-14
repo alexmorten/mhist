@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -52,8 +53,9 @@ func (h *HTTPHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 }
 
 type getParams struct {
-	startTs int64
-	endTs   int64
+	startTs          int64
+	endTs            int64
+	filterDefinition FilterDefinition
 }
 
 func (h *HTTPHandler) handleGet(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +69,8 @@ func (h *HTTPHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		renderError(err, w, http.StatusBadRequest)
 		return
 	}
-	responseMap := h.Server.store.GetAllMeasurementsInTimeRange(params.startTs, params.endTs)
+
+	responseMap := h.Server.store.GetMeasurementsInTimeRange(params.startTs, params.endTs, params.filterDefinition)
 	data, err := json.Marshal(responseMap)
 	if err != nil {
 		renderError(err, w, http.StatusInternalServerError)
@@ -80,6 +83,8 @@ func parseParams(params url.Values) (p *getParams, err error) {
 	p = &getParams{}
 	startTsParam := params.Get("start")
 	endTsParam := params.Get("end")
+	granularityParam := params.Get("granularity")
+	namesParam := params.Get("names")
 	if endTsParam == "" {
 		p.endTs = time.Now().UnixNano()
 	} else {
@@ -92,6 +97,19 @@ func parseParams(params url.Values) (p *getParams, err error) {
 		p.startTs = p.endTs - (1 * time.Hour).Nanoseconds()
 	} else {
 		p.startTs, err = strconv.ParseInt(startTsParam, 10, 64)
+	}
+
+	if granularityParam != "" {
+		granularity, err := time.ParseDuration(granularityParam)
+		if err != nil {
+			return nil, err
+		}
+		p.filterDefinition.Granularity = granularity
+	}
+
+	if namesParam != "" {
+		names := strings.Split(namesParam, ",")
+		p.filterDefinition.Names = names
 	}
 	return
 }

@@ -68,14 +68,14 @@ func (s *Store) Add(name string, m Measurement, isReplication bool) {
 	s.GetSeries(name, m.Type()).Add(m)
 }
 
-//GetAllMeasurementsInTimeRange for all series
+//GetMeasurementsInTimeRange for all series
 //TODO: change interface of diskStore to only read necessary parts, for now read all if any in memroy series is incomplete
-func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Measurement {
+func (s *Store) GetMeasurementsInTimeRange(start, end int64, filterDefinition FilterDefinition) map[string][]Measurement {
 	m := map[string][]Measurement{}
 	anyIncomplete := false
 
 	s.forEachSeries(func(name string, series *Series) {
-		measurements, possiblyIncomplete := series.GetMeasurementsInTimeRange(start, end)
+		measurements, possiblyIncomplete := series.GetMeasurementsInTimeRange(start, end, filterDefinition)
 		m[name] = measurements
 		if possiblyIncomplete {
 			anyIncomplete = true
@@ -93,7 +93,7 @@ func (s *Store) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Mea
 		}
 
 		if anyIncomplete || anyNameNotIncluded {
-			return s.diskStore.GetAllMeasurementsInTimeRange(start, end)
+			return s.diskStore.GetMeasurementsInTimeRange(start, end, filterDefinition)
 		}
 	}
 

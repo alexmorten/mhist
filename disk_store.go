@@ -33,9 +33,10 @@ type addMessage struct {
 type readResult map[string][]Measurement
 
 type readMessage struct {
-	fromTs     int64
-	toTs       int64
-	resultChan chan readResult
+	fromTs           int64
+	toTs             int64
+	filterDefinition FilterDefinition
+	resultChan       chan readResult
 }
 
 //NewDiskStore initializes the DiskBlockRoutine
@@ -78,13 +79,14 @@ func (s *DiskStore) Add(name string, measurement Measurement) {
 	<-doneChan
 }
 
-//GetAllMeasurementsInTimeRange for all measurement names
-func (s *DiskStore) GetAllMeasurementsInTimeRange(start, end int64) map[string][]Measurement {
+//GetMeasurementsInTimeRange for all measurement names
+func (s *DiskStore) GetMeasurementsInTimeRange(start, end int64, filterDefiniton FilterDefinition) map[string][]Measurement {
 	resultChan := make(chan readResult)
 	s.readChan <- readMessage{
-		fromTs:     start,
-		toTs:       end,
-		resultChan: resultChan,
+		fromTs:           start,
+		toTs:             end,
+		filterDefinition: filterDefiniton,
+		resultChan:       resultChan,
 	}
 	return <-resultChan
 }
@@ -114,7 +116,7 @@ loop:
 			timer.Stop()
 			timer.Reset(timeBetweenWrites)
 		case message := <-s.readChan:
-			message.resultChan <- s.handleRead(message.fromTs, message.toTs)
+			message.resultChan <- s.handleRead(message.fromTs, message.toTs, message.filterDefinition)
 		case message := <-s.addChan:
 			s.handleAdd(message.name, message.measurement)
 			message.doneChan <- struct{}{}
@@ -169,14 +171,14 @@ func (s *DiskStore) handleAdd(name string, m Measurement) {
 
 }
 
-func (s *DiskStore) handleRead(start, end int64) readResult {
+func (s *DiskStore) handleRead(start, end int64, filterDefinition FilterDefinition) readResult {
 	result := readResult{}
 	files, err := GetFilesInTimeRange(start, end)
 	if err != nil {
 		fmt.Println(err)
 		return readResult{}
 	}
-
+	filter := NewFilterCollection(filterDefinition)
 	for _, file := range files {
 		f, err := os.Open(filepath.Join(dataPath, file.name))
 		if err != nil {
@@ -231,7 +233,9 @@ func (s *DiskStore) handleRead(start, end int64) readResult {
 					Value: valueString,
 				}
 			}
-			result[name] = append(result[name], measurement)
+			if filter.Passes(name, measurement) {
+				result[name] = append(result[name], measurement)
+			}
 		}
 	}
 
