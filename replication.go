@@ -3,19 +3,17 @@ package mhist
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/codeuniversity/ppp-mhist/tcp"
 )
 
 //Replication is a wrapper for tcp.Client, that implements the subscriber interface
 type Replication struct {
-	client *tcp.Client
+	client *TCPClient
 }
 
 //NewReplication creates the underlying tcp.Client correctly
 func NewReplication(address string) *Replication {
 	return &Replication{
-		client: tcp.NewReplicatorClient(address),
+		client: NewReplicatorClient(address),
 	}
 }
 
