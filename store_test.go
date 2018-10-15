@@ -18,7 +18,7 @@ func TestStore(t *testing.T) {
 			for _, m := range testhelpers.GetSampleMeasurements(6, 1040, 20) {
 				s.Add("acceleration", m, false)
 			}
-			returnedMap := s.GetAllMeasurementsInTimeRange(1020, 1060)
+			returnedMap := s.GetMeasurementsInTimeRange(1020, 1060, mhist.FilterDefinition{})
 			So(len(returnedMap["temperature"]), ShouldEqual, 3)
 			So(len(returnedMap["acceleration"]), ShouldEqual, 2)
 			s.Shutdown()

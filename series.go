@@ -61,7 +61,7 @@ func (s *Series) Shutdown() {
 
 //GetMeasurementsInTimeRange returns the measurements in approx. the given timerange
 ////assumes equally distributed measurements over time
-func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) (measurements []Measurement, possiblyIncomplete bool) {
+func (s *Series) GetMeasurementsInTimeRange(start int64, end int64, filterDefinition FilterDefinition) (measurements []Measurement, possiblyIncomplete bool) {
 	s.rwLock.RLock()
 	defer s.rwLock.RUnlock()
 	startIndex, err := s.calcIndexAbove(start)
@@ -74,10 +74,15 @@ func (s *Series) GetMeasurementsInTimeRange(start int64, end int64) (measurement
 		fmt.Println(err)
 		return
 	}
+
+	filter := &TimestampFilter{Granularity: filterDefinition.Granularity}
+
 	length := endIndex - startIndex + 1
-	measurements = make([]Measurement, length)
+	measurements = make([]Measurement, 0, length)
 	for i := 0; i < length; i++ {
-		measurements[i] = s.measurements[i+startIndex].Copy()
+		if filter.Passes(s.measurements[i+startIndex]) {
+			measurements = append(measurements, s.measurements[i+startIndex].Copy())
+		}
 	}
 	if startIndex == 0 {
 		possiblyIncomplete = true
