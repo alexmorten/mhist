@@ -78,8 +78,9 @@ func (s *Server) Shutdown() {
 }
 
 type message struct {
-	Name  string      `json:"name"`
-	Value interface{} `json:"value"`
+	Name      string      `json:"name"`
+	Timestamp int64       `json:"timestamp"`
+	Value     interface{} `json:"value"`
 }
 
 func (s *Server) handleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
@@ -107,13 +108,21 @@ func (s *Server) constructMeasurementFromMessage(r *message) (measurement Measur
 	case float64:
 		m := s.pools.GetNumericalMeasurement()
 		m.Reset()
-		m.Ts = time.Now().UnixNano()
+		if r.Timestamp == 0 {
+			m.Ts = time.Now().UnixNano()
+		} else {
+			m.Ts = r.Timestamp
+		}
 		m.Value = r.Value.(float64)
 		measurement = m
 	case string:
 		m := s.pools.GetCategoricalMeasurement()
 		m.Reset()
-		m.Ts = time.Now().UnixNano()
+		if r.Timestamp == 0 {
+			m.Ts = time.Now().UnixNano()
+		} else {
+			m.Ts = r.Timestamp
+		}
 		m.Value = r.Value.(string)
 		measurement = m
 	default:

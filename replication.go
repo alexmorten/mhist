@@ -20,8 +20,9 @@ func NewReplication(address string) *Replication {
 //Notify replication about new measurement
 func (r *Replication) Notify(name string, measurement Measurement) {
 	message := &message{
-		Name:  name,
-		Value: measurement.ValueInterface(),
+		Name:      name,
+		Value:     measurement.ValueInterface(),
+		Timestamp: measurement.Timestamp(),
 	}
 	byteSlice, err := json.Marshal(message)
 	if err != nil {
