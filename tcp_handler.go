@@ -32,7 +32,7 @@ func NewTCPHandler(server *Server, port int) *TCPHandler {
 
 //Notify handler about new message
 func (h *TCPHandler) Notify(name string, measurement Measurement) {
-	m := &message{
+	m := &Message{
 		Name:      name,
 		Value:     measurement.ValueInterface(),
 		Timestamp: measurement.Timestamp(),

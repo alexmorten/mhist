@@ -19,7 +19,7 @@ func NewReplication(address string) *Replication {
 
 //Notify replication about new measurement
 func (r *Replication) Notify(name string, measurement Measurement) {
-	message := &message{
+	message := &Message{
 		Name:      name,
 		Value:     measurement.ValueInterface(),
 		Timestamp: measurement.Timestamp(),
