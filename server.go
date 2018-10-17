@@ -77,14 +77,8 @@ func (s *Server) Shutdown() {
 	s.store.Shutdown()
 }
 
-type message struct {
-	Name      string      `json:"name"`
-	Timestamp int64       `json:"timestamp"`
-	Value     interface{} `json:"value"`
-}
-
 func (s *Server) handleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
-	data := &message{}
+	data := &Message{}
 	err := json.Unmarshal(byteSlice, data)
 	if err != nil {
 		onError(err, http.StatusBadRequest)
@@ -103,27 +97,27 @@ func (s *Server) handleNewMessage(byteSlice []byte, isReplication bool, onError 
 	s.store.Add(data.Name, measurement, isReplication)
 }
 
-func (s *Server) constructMeasurementFromMessage(r *message) (measurement Measurement, err error) {
-	switch r.Value.(type) {
+func (s *Server) constructMeasurementFromMessage(message *Message) (measurement Measurement, err error) {
+	switch message.Value.(type) {
 	case float64:
 		m := s.pools.GetNumericalMeasurement()
 		m.Reset()
-		if r.Timestamp == 0 {
+		if message.Timestamp == 0 {
 			m.Ts = time.Now().UnixNano()
 		} else {
-			m.Ts = r.Timestamp
+			m.Ts = message.Timestamp
 		}
-		m.Value = r.Value.(float64)
+		m.Value = message.Value.(float64)
 		measurement = m
 	case string:
 		m := s.pools.GetCategoricalMeasurement()
 		m.Reset()
-		if r.Timestamp == 0 {
+		if message.Timestamp == 0 {
 			m.Ts = time.Now().UnixNano()
 		} else {
-			m.Ts = r.Timestamp
+			m.Ts = message.Timestamp
 		}
-		m.Value = r.Value.(string)
+		m.Value = message.Value.(string)
 		measurement = m
 	default:
 		return nil, errors.New("value is neither a float nor a string")
