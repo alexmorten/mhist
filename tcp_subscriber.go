@@ -2,6 +2,7 @@ package mhist
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 )
 
@@ -16,6 +17,7 @@ func NewTCPSubscriber(address string, filterDefinition FilterDefinition, channel
 	return &TCPSubscriber{
 		TCPClient: TCPClient{
 			Address:             address,
+			buffer:              &bytes.Buffer{},
 			subscriptionMessage: &SubscriptionMessage{FilterDefinition: filterDefinition},
 		},
 		newMessageChan: channel,
