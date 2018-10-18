@@ -21,12 +21,11 @@ type TCPClient struct {
 
 //NewTCPClient initializes a new client
 func NewTCPClient(address string) *TCPClient {
-	client := &TCPClient{
+	return &TCPClient{
 		Address:             address,
 		buffer:              &bytes.Buffer{},
 		subscriptionMessage: &SubscriptionMessage{Publisher: true},
 	}
-	return client
 }
 
 //NewReplicatorClient sets the subscriptionMessage correctly for a replication connection
