@@ -10,40 +10,43 @@ import (
 	"github.com/codeuniversity/ppp-mhist/tcp"
 )
 
-//TCPHandler handles tcp connections. This a wrapper around tcp.handler with (Un-)Marshalizing capabilities
+//TCPHandler handles tcp connections
 type TCPHandler struct {
 	address                     string
 	outboundCollection          *tcp.ConnectionCollection
 	server                      *Server
 	filterPerOutboundConnection map[*tcp.Connection]*FilterCollection
 	filterMutex                 *sync.RWMutex
+	pools                       *Pools
 }
 
 //NewTCPHandler sets the wrapped handlers callbacks correctly, Run() still has to be called
-func NewTCPHandler(server *Server, port int) *TCPHandler {
+func NewTCPHandler(server *Server, port int, pools *Pools) *TCPHandler {
 	return &TCPHandler{
 		address:                     fmt.Sprintf("0.0.0.0:%v", port),
 		server:                      server,
 		outboundCollection:          &tcp.ConnectionCollection{},
 		filterMutex:                 &sync.RWMutex{},
 		filterPerOutboundConnection: make(map[*tcp.Connection]*FilterCollection),
+		pools:                       pools,
 	}
 }
 
 //Notify handler about new message
 func (h *TCPHandler) Notify(name string, measurement Measurement) {
-	m := &Message{
-		Name:      name,
-		Value:     measurement.ValueInterface(),
-		Timestamp: measurement.Timestamp(),
-	}
+	m := h.pools.GetMessage()
+	defer h.pools.PutMessage(m)
+
+	m.Reset()
+	m.Name = name
+	m.Value = measurement.ValueInterface()
+	m.Timestamp = measurement.Timestamp()
 
 	byteSlice, err := json.Marshal(m)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	h.filterMutex.RLock()
 	defer h.filterMutex.RUnlock()
 	h.outboundCollection.ForEach(func(conn *tcp.Connection) {

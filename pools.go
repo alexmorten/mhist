@@ -6,8 +6,9 @@ import (
 
 //Pools holds the pools for the different measurement types (only one for now)
 type Pools struct {
-	Store *Store
-	pools map[MeasurementType]*sync.Pool
+	Store            *Store
+	messagePool      *sync.Pool
+	measurementPools map[MeasurementType]*sync.Pool
 }
 
 //MeasurementSlices for moving types of Measurements around
@@ -17,8 +18,13 @@ type MeasurementSlices map[MeasurementType][]Measurement
 func NewPools(store *Store) *Pools {
 	pools := &Pools{
 		Store: store,
+		messagePool: &sync.Pool{
+			New: func() interface{} {
+				return &Message{}
+			},
+		},
 	}
-	pools.pools = map[MeasurementType]*sync.Pool{
+	pools.measurementPools = map[MeasurementType]*sync.Pool{
 		MeasurementNumerical: &sync.Pool{
 			New: func() interface{} {
 				slices, ok := grabSlicesFromStore(store)
@@ -57,17 +63,27 @@ func NewPools(store *Store) *Pools {
 
 //GetNumericalMeasurement out of the correct pool
 func (pools *Pools) GetNumericalMeasurement() *Numerical {
-	return pools.pools[MeasurementNumerical].Get().(*Numerical)
+	return pools.measurementPools[MeasurementNumerical].Get().(*Numerical)
 }
 
 //GetCategoricalMeasurement out of the correct pool
 func (pools *Pools) GetCategoricalMeasurement() *Categorical {
-	return pools.pools[MeasurementCategorical].Get().(*Categorical)
+	return pools.measurementPools[MeasurementCategorical].Get().(*Categorical)
 }
 
 //PutMeasurement out of the correct pool
 func (pools *Pools) PutMeasurement(m Measurement) {
-	pools.pools[m.Type()].Put(m)
+	pools.measurementPools[m.Type()].Put(m)
+}
+
+//GetMessage from MessagePool
+func (pools *Pools) GetMessage() *Message {
+	return pools.messagePool.Get().(*Message)
+}
+
+//PutMessage into MessagePool
+func (pools *Pools) PutMessage(m *Message) {
+	pools.messagePool.Put(m)
 }
 
 func grabSlicesFromStore(store *Store) (slices MeasurementSlices, ok bool) {
@@ -83,7 +99,7 @@ func grabSlicesFromStore(store *Store) (slices MeasurementSlices, ok bool) {
 func (pools *Pools) fill(slices MeasurementSlices) {
 	for key, slice := range slices {
 		for _, measurement := range slice {
-			pools.pools[key].Put(measurement)
+			pools.measurementPools[key].Put(measurement)
 		}
 	}
 }
