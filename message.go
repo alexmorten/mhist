@@ -6,3 +6,10 @@ type Message struct {
 	Timestamp int64       `json:"timestamp"`
 	Value     interface{} `json:"value"`
 }
+
+//Reset message to zero value
+func (m *Message) Reset() {
+	m.Name = ""
+	m.Timestamp = 0
+	m.Value = nil
+}

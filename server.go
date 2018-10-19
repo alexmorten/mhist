@@ -42,7 +42,7 @@ func NewServer(config ServerConfig) *Server {
 		pools:     pools,
 		waitGroup: &sync.WaitGroup{},
 	}
-	tcpHandler := NewTCPHandler(server, config.TCPPort)
+	tcpHandler := NewTCPHandler(server, config.TCPPort, pools)
 	server.tcpHandler = tcpHandler
 	memStore.AddSubscriber(tcpHandler)
 
@@ -52,7 +52,7 @@ func NewServer(config ServerConfig) *Server {
 	}
 	server.httpHandler = httpHandler
 	for _, address := range config.ReplicationAddresses {
-		replication := NewReplication(address)
+		replication := NewReplication(address, pools)
 		memStore.AddReplication(replication)
 	}
 	return server
@@ -78,7 +78,10 @@ func (s *Server) Shutdown() {
 }
 
 func (s *Server) handleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
-	data := &Message{}
+	data := s.pools.GetMessage()
+	defer s.pools.PutMessage(data)
+
+	data.Reset()
 	err := json.Unmarshal(byteSlice, data)
 	if err != nil {
 		onError(err, http.StatusBadRequest)
