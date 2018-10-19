@@ -123,7 +123,7 @@ func renderError(err error, w http.ResponseWriter, status int) {
 	resp := &errorResponse{Error: err.Error()}
 	data, err := json.Marshal(resp)
 	if err == nil {
-		w.Write(data)
 		w.WriteHeader(status)
+		w.Write(data)
 	}
 }
