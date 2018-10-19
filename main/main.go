@@ -4,6 +4,8 @@ import (
 	"flag"
 	"strings"
 
+	_ "net/http/pprof" //pprof for performance analysis
+
 	"github.com/codeuniversity/ppp-mhist"
 )
 
