@@ -185,6 +185,7 @@ func (s *DiskStore) handleRead(start, end int64, filterDefinition FilterDefiniti
 			fmt.Println(err)
 			continue
 		}
+		defer f.Close()
 		csvReader := newCsvReader(f)
 		lines, err := csvReader.ReadAll()
 		if err != nil {
