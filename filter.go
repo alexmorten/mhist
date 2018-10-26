@@ -10,7 +10,8 @@ type FilterDefinition struct {
 	Granularity time.Duration
 }
 
-func (d FilterDefinition) isInNames(nameToCheck string) bool {
+//IsInNames checks if the provided name is allowed according to the filterDefiniton
+func (d FilterDefinition) IsInNames(nameToCheck string) bool {
 	if len(d.Names) == 0 {
 		return true
 	}
@@ -53,7 +54,7 @@ func NewFilterCollection(definition FilterDefinition) *FilterCollection {
 
 //Passes checks if this measurement passes the filter. If it does, it updates the filter accordingly (passes one time max)
 func (c *FilterCollection) Passes(name string, measurement Measurement) bool {
-	if !c.Definition.isInNames(name) {
+	if !c.Definition.IsInNames(name) {
 		return false
 	}
 	if c.Definition.Granularity == 0 {
