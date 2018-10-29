@@ -75,7 +75,7 @@ func (s *Store) GetMeasurementsInTimeRange(start, end int64, filterDefinition Fi
 	anyIncomplete := false
 
 	s.forEachSeries(func(name string, series *Series) {
-		if !filterDefinition.isInNames(name) {
+		if !filterDefinition.IsInNames(name) {
 			return
 		}
 		measurements, possiblyIncomplete := series.GetMeasurementsInTimeRange(start, end, filterDefinition)
