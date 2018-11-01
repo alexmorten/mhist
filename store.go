@@ -1,6 +1,7 @@
 package mhist
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -86,10 +87,10 @@ func (s *Store) GetMeasurementsInTimeRange(start, end int64, filterDefinition Fi
 	})
 
 	if s.diskStore != nil {
-		allNames := s.diskStore.GetAllStoredNames()
+		allInfos := s.diskStore.GetAllStoredInfos()
 		anyNameNotIncluded := false
-		for _, name := range allNames {
-			if len(m[name]) == 0 {
+		for _, info := range allInfos {
+			if len(m[info.Name]) == 0 {
 				anyNameNotIncluded = true
 				break
 			}
@@ -101,6 +102,16 @@ func (s *Store) GetMeasurementsInTimeRange(start, end int64, filterDefinition Fi
 	}
 
 	return m
+}
+
+//GetStoredMetaInfo from Diskstore
+func (s *Store) GetStoredMetaInfo() []MeasurementTypeInfo {
+	if s.diskStore == nil {
+		fmt.Println("no diskstore added to store, can't access metadata")
+		return []MeasurementTypeInfo{}
+	}
+
+	return s.diskStore.GetAllStoredInfos()
 }
 
 //Shutdown all contained series
