@@ -91,9 +91,9 @@ func (s *DiskStore) GetMeasurementsInTimeRange(start, end int64, filterDefiniton
 	return <-resultChan
 }
 
-//GetAllStoredNames from meta
-func (s *DiskStore) GetAllStoredNames() []string {
-	return s.meta.GetAllStoredNames()
+//GetAllStoredInfos from meta
+func (s *DiskStore) GetAllStoredInfos() []MeasurementTypeInfo {
+	return s.meta.GetAllStoredInfos()
 }
 
 //Shutdown DiskBlock goroutine

@@ -20,6 +20,7 @@ type HTTPHandler struct {
 
 //Run the handler
 func (h *HTTPHandler) Run() {
+	http.HandleFunc("/meta", h.serveStoredMeta)
 	http.Handle("/", h)
 	err := http.ListenAndServe(fmt.Sprintf(":%v", h.Port), nil)
 	if err != nil {
@@ -41,6 +42,25 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleGet(w, r)
 	}
 }
+
+func (h *HTTPHandler) serveStoredMeta(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}()
+
+	infos := h.Server.store.GetStoredMetaInfo()
+	byteSlice, err := json.Marshal(infos)
+	if err != nil {
+		renderError(err, w, http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(byteSlice)
+}
+
 func (h *HTTPHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	byteSlice, err := ioutil.ReadAll(r.Body)
 	if err != nil {

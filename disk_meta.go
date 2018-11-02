@@ -23,6 +23,12 @@ type DiskMeta struct {
 	sync.RWMutex
 }
 
+//MeasurementTypeInfo ...
+type MeasurementTypeInfo struct {
+	Name string
+	Type MeasurementType
+}
+
 //InitMetaFromDisk ...
 func InitMetaFromDisk() *DiskMeta {
 	byteSlice, err := ioutil.ReadFile(filepath.Join(dataPath, metaFilePath))
@@ -94,12 +100,16 @@ func (m *DiskMeta) GetTypeForID(id int64) MeasurementType {
 	return m.IDToType[id]
 }
 
-//GetAllStoredNames from meta
-func (m *DiskMeta) GetAllStoredNames() (names []string) {
+//GetAllStoredInfos from meta
+func (m *DiskMeta) GetAllStoredInfos() (infos []MeasurementTypeInfo) {
 	m.RLock()
 	defer m.RUnlock()
-	for name := range m.NameToID {
-		names = append(names, name)
+	for name, id := range m.NameToID {
+		info := MeasurementTypeInfo{
+			Name: name,
+			Type: m.IDToType[id],
+		}
+		infos = append(infos, info)
 	}
 	return
 }
