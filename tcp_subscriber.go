@@ -27,6 +27,7 @@ func NewTCPSubscriber(address string, filterDefinition FilterDefinition, channel
 //Read incoming messages
 func (s *TCPSubscriber) Read() error {
 	s.Lock()
+	defer s.Unlock()
 	reader := bufio.NewReader(s.conn)
 	for {
 		byteSlice, err := reader.ReadSlice('\n')
