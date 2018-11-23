@@ -25,8 +25,8 @@ type DiskMeta struct {
 
 //MeasurementTypeInfo ...
 type MeasurementTypeInfo struct {
-	Name string
-	Type MeasurementType
+	Name string          `json:"name"`
+	Type MeasurementType `json:"type"`
 }
 
 //InitMetaFromDisk ...
