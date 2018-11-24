@@ -6,8 +6,8 @@ import (
 
 //FilterDefinition is the definition of what measurments to forward in what intervals
 type FilterDefinition struct {
-	Names       []string
-	Granularity time.Duration
+	Names       []string      `json:"names"`
+	Granularity time.Duration `json:"granularity"`
 }
 
 //IsInNames checks if the provided name is allowed according to the filterDefiniton
