@@ -1,8 +1,0 @@
-package: github.com/codeuniversity/ppp-mhist
-import:
-- package: github.com/smartystreets/goconvey
-  version: ^1.6.3
-  subpackages:
-  - convey
-- package: github.com/jtolds/gls
-  version: ^4.2.1
