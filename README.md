@@ -1,7 +1,7 @@
 # ppp-mhist
 ## simple measurement history logger
 This is a very simple measurement database, that receives measurements (consisting of name, value and optionally a timestamp) through tcp or http. If you don't send a timestamp with the measurement, the current time is used (there are rarely reasons to send a different timestamp).
-The latest measurements are stored in memory for fast access and all measurements are also stored on disk for permanent storage.
+Measurements are stored on disk
 
 For realtime updates you can subscribe to mhist with tcp and for historical access you can retrieve measurements with http.
 
@@ -13,7 +13,6 @@ Mhist also supports barebones data-replication to other instances of itself (the
 - measurement types don't change for a certain measurement name.
 - measurements are taken in regular intervals.
 - it is known in advance how much memory and diskspace can be used by mhist.
-- for 'recent' measurements really fast access is more important than perfect accuracy.
 - when retrieving measurements you want to retrieve measurements of all names more often than just certain names.
 
 ### setup
@@ -21,7 +20,7 @@ Mhist also supports barebones data-replication to other instances of itself (the
 assuming you have a working go installation:
 clone this repo into `$GOPATH/src/github.com/alexmorten/mhist`.
 
-Run `make install dep run` in the `ppp-profiler` directory.
+This uses [go mod for dependency management](https://github.com/golang/go/wiki/Modules)
 
 To see how to change the default configuration, run ` go run main/main.go -h`
 
@@ -37,6 +36,6 @@ To see how to change the default configuration, run ` go run main/main.go -h`
 
 ### todos
 
-- [ ] refactor package layout. Types used all over the place should be in a package like `models` instead of being defined in the `mhist` package.
+- [X] refactor package layout. Types used all over the place should be in a package like `models` instead of being defined in the `mhist` package.
 - [ ] historical access should be also possible over tcp. For example streaming all measurements starting from a certain timestamp. This would also enable:
 - [ ] starting a new mhist instance that grabs all data that was already received by another instance and also gets all replicated date from that point forward.
