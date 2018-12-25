@@ -1,6 +1,7 @@
 package mhist
 
 import (
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -57,17 +58,17 @@ type FileInfo struct {
 type FileInfoSlice []*FileInfo
 
 //WriteBlockToFile ...
-func WriteBlockToFile(b *Block) error {
-	return ioutil.WriteFile(filepath.Join(dataPath, fileNameFromTs(b.OldestTs(), b.LatestTs())), b.Buffer.Bytes(), os.ModePerm)
+func WriteBlockToFile(b Block) error {
+	return ioutil.WriteFile(filepath.Join(dataPath, fileNameFromTs(b.OldestTs(), b.LatestTs())), b.UnderlyingByteSlice(), os.ModePerm)
 }
 
 //AppendBlockToFile ...
-func AppendBlockToFile(info *FileInfo, block *Block) error {
+func AppendBlockToFile(info *FileInfo, block Block) error {
 	f, err := os.OpenFile(filepath.Join(dataPath, info.name), os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
-	_, err = f.Write(block.Buffer.Bytes())
+	_, err = f.Write(block.UnderlyingByteSlice())
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func AppendBlockToFile(info *FileInfo, block *Block) error {
 }
 
 func fileNameFromTs(oldestTs, latestTs int64) string {
-	return fmt.Sprintf("%v-%v.csv", oldestTs, latestTs)
+	return fmt.Sprintf("%v-%v", oldestTs, latestTs)
 }
 
 func timestampsFromFileName(name string) (info *FileInfo, err error) {
@@ -113,4 +114,23 @@ func (s FileInfoSlice) TotalSize() (size int64) {
 
 func (i *FileInfo) isInTimeRange(start, end int64) bool {
 	return (i.latestTs > start && !(i.oldestTs > end))
+}
+
+func writeGob(filePath string, object interface{}) error {
+	file, err := os.Create(filePath)
+	if err == nil {
+		encoder := gob.NewEncoder(file)
+		err = encoder.Encode(object)
+	}
+	file.Close()
+	return err
+}
+
+func readGob(filePath string, object interface{}) error {
+	file, err := os.Open(filePath)
+	if err == nil {
+		decoder := gob.NewDecoder(file)
+		err = decoder.Decode(object)
+	}
+	return err
 }

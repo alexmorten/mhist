@@ -1,31 +1,33 @@
-package mhist
+package tcp
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
+
+	"github.com/alexmorten/mhist/models"
 )
 
-//TCPSubscriber is a TCPClient that can receive messages
-type TCPSubscriber struct {
-	TCPClient
+//Subscriber is a TCPClient that can receive messages
+type Subscriber struct {
+	Client
 	newMessageChan chan []byte
 }
 
 //NewTCPSubscriber initializes a new client
-func NewTCPSubscriber(address string, filterDefinition FilterDefinition, channel chan []byte) *TCPSubscriber {
-	return &TCPSubscriber{
-		TCPClient: TCPClient{
+func NewTCPSubscriber(address string, filterDefinition models.FilterDefinition, channel chan []byte) *Subscriber {
+	return &Subscriber{
+		Client: Client{
 			Address:             address,
 			buffer:              &bytes.Buffer{},
-			subscriptionMessage: &SubscriptionMessage{FilterDefinition: filterDefinition},
+			subscriptionMessage: &models.SubscriptionMessage{FilterDefinition: filterDefinition},
 		},
 		newMessageChan: channel,
 	}
 }
 
 //Read incoming messages
-func (s *TCPSubscriber) Read() error {
+func (s *Subscriber) Read() error {
 	s.Lock()
 	defer s.Unlock()
 	reader := bufio.NewReader(s.conn)

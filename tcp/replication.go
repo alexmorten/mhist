@@ -1,18 +1,20 @@
-package mhist
+package tcp
 
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/alexmorten/mhist/models"
 )
 
 //Replication is a wrapper for tcp.Client, that implements the subscriber interface
 type Replication struct {
-	client *TCPClient
-	pools  *Pools
+	client *Client
+	pools  *models.Pools
 }
 
 //NewReplication creates the underlying tcp.Client correctly
-func NewReplication(address string, pools *Pools) *Replication {
+func NewReplication(address string, pools *models.Pools) *Replication {
 	return &Replication{
 		client: NewReplicatorClient(address),
 		pools:  pools,
@@ -20,7 +22,7 @@ func NewReplication(address string, pools *Pools) *Replication {
 }
 
 //Notify replication about new measurement
-func (r *Replication) Notify(name string, measurement Measurement) {
+func (r *Replication) Notify(name string, measurement models.Measurement) {
 	message := r.pools.GetMessage()
 	defer r.pools.PutMessage(message)
 

@@ -1,4 +1,4 @@
-package mhist
+package tcp
 
 import (
 	"bytes"
@@ -8,35 +8,37 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/alexmorten/mhist/models"
 )
 
-//TCPClient for tcp connections. Automatically retries establishing connections
-type TCPClient struct {
+//Client for tcp connections. Automatically retries establishing connections
+type Client struct {
 	Address             string
-	subscriptionMessage *SubscriptionMessage
+	subscriptionMessage *models.SubscriptionMessage
 	buffer              *bytes.Buffer
 	conn                net.Conn
 	sync.RWMutex
 }
 
-//NewTCPClient initializes a new client
-func NewTCPClient(address string) *TCPClient {
-	return &TCPClient{
+//NewClient initializes a new client
+func NewClient(address string) *Client {
+	return &Client{
 		Address:             address,
 		buffer:              &bytes.Buffer{},
-		subscriptionMessage: &SubscriptionMessage{Publisher: true},
+		subscriptionMessage: &models.SubscriptionMessage{Publisher: true},
 	}
 }
 
 //NewReplicatorClient sets the subscriptionMessage correctly for a replication connection
-func NewReplicatorClient(address string) *TCPClient {
-	client := NewTCPClient(address)
+func NewReplicatorClient(address string) *Client {
+	client := NewClient(address)
 	client.subscriptionMessage.Replication = true
 	return client
 }
 
 //Connect to described address
-func (c *TCPClient) Connect() {
+func (c *Client) Connect() {
 	c.Lock()
 	defer c.Unlock()
 	for {
@@ -65,7 +67,7 @@ func (c *TCPClient) Connect() {
 	}
 }
 
-func (c *TCPClient) Write(byteSlice []byte) {
+func (c *Client) Write(byteSlice []byte) {
 	c.Lock()
 	c.buffer.Write(append(byteSlice, '\n'))
 	err := c.writeBufferToConnection()
@@ -77,7 +79,7 @@ func (c *TCPClient) Write(byteSlice []byte) {
 	}
 }
 
-func (c *TCPClient) writeBufferToConnection() error {
+func (c *Client) writeBufferToConnection() error {
 	if c.conn == nil {
 		return errors.New("connection not set")
 	}

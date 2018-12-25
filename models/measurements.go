@@ -1,4 +1,4 @@
-package mhist
+package models
 
 import (
 	"strconv"

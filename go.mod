@@ -1,4 +1,4 @@
-module github.com/codeuniversity/ppp-mhist
+module github.com/alexmorten/mhist
 
 require (
 	github.com/jtolds/gls v4.2.1+incompatible

@@ -6,7 +6,7 @@ import (
 
 	_ "net/http/pprof" //pprof for performance analysis
 
-	"github.com/codeuniversity/ppp-mhist"
+	"github.com/alexmorten/mhist"
 )
 
 func main() {

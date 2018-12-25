@@ -6,14 +6,17 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/alexmorten/mhist/models"
+	"github.com/alexmorten/mhist/tcp"
 )
 
 //Server is the handler for requests
 type Server struct {
 	store       *Store
-	pools       *Pools
+	pools       *models.Pools
 	httpHandler *HTTPHandler
-	tcpHandler  *TCPHandler
+	tcpHandler  *tcp.Handler
 	waitGroup   *sync.WaitGroup
 }
 
@@ -28,23 +31,22 @@ type ServerConfig struct {
 
 //NewServer returns a new Server
 func NewServer(config ServerConfig) *Server {
-	memStore := NewStore(config.MemorySize)
-	pools := NewPools(memStore)
+	pools := models.NewPools()
 	diskStore, err := NewDiskStore(pools, config.MemorySize, config.DiskSize)
 	if err != nil {
 		panic(err)
 	}
-	memStore.AddSubscriber(diskStore)
-	memStore.SetDiskStore(diskStore)
+
+	store := NewStore(diskStore)
 
 	server := &Server{
-		store:     memStore,
+		store:     store,
 		pools:     pools,
 		waitGroup: &sync.WaitGroup{},
 	}
-	tcpHandler := NewTCPHandler(server, config.TCPPort, pools)
+	tcpHandler := tcp.NewHandler(config.TCPPort, server, pools)
 	server.tcpHandler = tcpHandler
-	memStore.AddSubscriber(tcpHandler)
+	store.AddSubscriber(tcpHandler)
 
 	httpHandler := &HTTPHandler{
 		Server: server,
@@ -52,8 +54,8 @@ func NewServer(config ServerConfig) *Server {
 	}
 	server.httpHandler = httpHandler
 	for _, address := range config.ReplicationAddresses {
-		replication := NewReplication(address, pools)
-		memStore.AddReplication(replication)
+		replication := tcp.NewReplication(address, pools)
+		store.AddReplication(replication)
 	}
 	return server
 }
@@ -74,10 +76,10 @@ func (s *Server) Run() {
 
 //Shutdown all goroutines
 func (s *Server) Shutdown() {
-	s.store.Shutdown()
 }
 
-func (s *Server) handleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
+//HandleNewMessage coming from any source
+func (s *Server) HandleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
 	data := s.pools.GetMessage()
 	defer s.pools.PutMessage(data)
 
@@ -100,7 +102,7 @@ func (s *Server) handleNewMessage(byteSlice []byte, isReplication bool, onError 
 	s.store.Add(data.Name, measurement, isReplication)
 }
 
-func (s *Server) constructMeasurementFromMessage(message *Message) (measurement Measurement, err error) {
+func (s *Server) constructMeasurementFromMessage(message *models.Message) (measurement models.Measurement, err error) {
 	switch message.Value.(type) {
 	case float64:
 		m := s.pools.GetNumericalMeasurement()

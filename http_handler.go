@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/alexmorten/mhist/models"
 )
 
 //HTTPHandler handles http connections
@@ -67,7 +69,7 @@ func (h *HTTPHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		renderError(err, w, http.StatusBadRequest)
 		return
 	}
-	h.Server.handleNewMessage(byteSlice, false, func(err error, status int) {
+	h.Server.HandleNewMessage(byteSlice, false, func(err error, status int) {
 		renderError(err, w, status)
 	})
 }
@@ -75,7 +77,7 @@ func (h *HTTPHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 type getParams struct {
 	startTs          int64
 	endTs            int64
-	filterDefinition FilterDefinition
+	filterDefinition models.FilterDefinition
 }
 
 func (h *HTTPHandler) handleGet(w http.ResponseWriter, r *http.Request) {

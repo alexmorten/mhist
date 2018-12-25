@@ -16,10 +16,10 @@ Mhist also supports barebones data-replication to other instances of itself (the
 - for 'recent' measurements really fast access is more important than perfect accuracy.
 - when retrieving measurements you want to retrieve measurements of all names more often than just certain names.
 
-### setup 
+### setup
 
 assuming you have a working go installation:
-clone this repo into `$GOPATH/src/github.com/codeuniversity/ppp-mhist`.
+clone this repo into `$GOPATH/src/github.com/alexmorten/mhist`.
 
 Run `make install dep run` in the `ppp-profiler` directory.
 
@@ -29,11 +29,11 @@ To see how to change the default configuration, run ` go run main/main.go -h`
 
 - `/`
   - `POST` send measurement to mhist as json with `name: string` and `value: number|string`.
-  - `GET` get recorded measurements with the following optional query params: 
+  - `GET` get recorded measurements with the following optional query params:
     - `start` & `end` points in time as unix-timestamps in nanoseconds, defining what timestamp of measurements to filter for.
     - `granularity` minimum [duration](https://golang.org/pkg/time/#ParseDuration) between measurements (i.e. with a granularity of `1s` all measurements returned will have at least 1 second between them)
     - `names` comma separated list of names of measurements. Measurements that are not in the list will not be returned
-- `/meta` get a list of stored measurement names and their types. 
+- `/meta` get a list of stored measurement names and their types.
 
 ### todos
 

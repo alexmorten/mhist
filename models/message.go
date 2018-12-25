@@ -1,4 +1,4 @@
-package mhist
+package models
 
 //Message represents events sent to and from the server
 type Message struct {
