@@ -143,7 +143,7 @@ func (s *DiskStore) commit() {
 		fmt.Printf("couldn't get file List: %v", err)
 		return
 	}
-	defer func() { s.block = Block{} }()
+	defer func() { s.block = s.block[:0] }()
 	if len(fileList) == 0 {
 		WriteBlockToFile(s.block)
 		return
