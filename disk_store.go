@@ -65,9 +65,7 @@ func NewDiskStore(pools *models.Pools, maxFileSize, maxDiskSize int) (*DiskStore
 
 //Notify DiskStore about new Measurement
 func (s *DiskStore) Notify(name string, m models.Measurement) {
-	ownMeasurement := m.CopyFrom(s.pools)
 	s.Add(name, m)
-	s.pools.PutMeasurement(ownMeasurement)
 }
 
 //Add measurement to block
