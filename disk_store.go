@@ -12,6 +12,7 @@ import (
 )
 
 const maxBuffer = 12 * 1024
+const timeBetweenWrites = 5 * time.Second
 
 var dataPath = "data"
 
@@ -112,7 +113,6 @@ func (s *DiskStore) Shutdown() {
 
 //Listen for new measurements
 func (s *DiskStore) Listen() {
-	timeBetweenWrites := 5 * time.Second
 	timer := time.NewTimer(timeBetweenWrites)
 loop:
 	for {
