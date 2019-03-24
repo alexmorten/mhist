@@ -1,6 +1,7 @@
 package mhist
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,17 +17,32 @@ import (
 
 //HTTPHandler handles http connections
 type HTTPHandler struct {
-	Server *Server
-	Port   int
+	Server     *Server
+	Port       int
+	httpServer *http.Server
 }
 
 //Run the handler
 func (h *HTTPHandler) Run() {
 	http.HandleFunc("/meta", h.serveStoredMeta)
 	http.Handle("/", h)
-	err := http.ListenAndServe(fmt.Sprintf(":%v", h.Port), nil)
+
+	h.httpServer = &http.Server{
+		Addr: fmt.Sprintf(":%v", h.Port),
+	}
+
+	err := h.httpServer.ListenAndServe()
 	if err != nil {
 		fmt.Println(err)
+	}
+}
+
+//Shutdown the HTTPHandler
+func (h *HTTPHandler) Shutdown() {
+	if h.httpServer != nil {
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		h.httpServer.Shutdown(timeoutCtx)
 	}
 }
 

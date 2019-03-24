@@ -3,8 +3,12 @@ package mhist
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/alexmorten/mhist/models"
@@ -62,6 +66,15 @@ func NewServer(config ServerConfig) *Server {
 
 //Run the server
 func (s *Server) Run() {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		signal := <-signals
+		fmt.Printf("received %s, shutting down\n", signal)
+		s.Shutdown()
+	}()
+
 	s.waitGroup.Add(2)
 	go func() {
 		s.httpHandler.Run()
@@ -74,8 +87,11 @@ func (s *Server) Run() {
 	s.waitGroup.Wait()
 }
 
-//Shutdown all goroutines
+//Shutdown all goroutines and connections
 func (s *Server) Shutdown() {
+	s.httpHandler.Shutdown()
+	s.tcpHandler.Shutdown()
+	s.store.Shutdown()
 }
 
 //HandleNewMessage coming from any source
