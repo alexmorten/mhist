@@ -135,19 +135,20 @@ func (h *Handler) handleNewConnection(conn net.Conn) {
 		connectionWrapper.OnNewMessage(func(byteSlice []byte) {
 			h.onNewMessage(byteSlice, m.Replication)
 		})
+		connectionWrapper.OnConnectionClose(func() {
+			h.allConnections.RemoveConnection(connectionWrapper)
+		})
 	} else {
 		h.addFilterForConnection(m.FilterDefinition, connectionWrapper)
 		h.outboundConnections.AddConnection(connectionWrapper)
 		connectionWrapper.OnConnectionClose(func() {
 			h.outboundConnections.RemoveConnection(connectionWrapper)
 			h.removeFilterForConnection(connectionWrapper)
+			h.allConnections.RemoveConnection(connectionWrapper)
 		})
 	}
 
 	h.allConnections.AddConnection(connectionWrapper)
-	connectionWrapper.OnConnectionClose(func() {
-		h.allConnections.RemoveConnection(connectionWrapper)
-	})
 
 	connectionWrapper.Listen()
 }
