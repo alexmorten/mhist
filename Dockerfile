@@ -1,4 +1,4 @@
-FROM golang:1.11 as builder
+FROM golang:1.12 as builder
 WORKDIR /go/src/github.com/alexmorten/mhist
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -installsuffix cgo -o mhist main/main.go
