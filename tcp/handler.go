@@ -42,13 +42,15 @@ func NewHandler(port int, messageHandler MessageHandler, pools *models.Pools) *H
 
 //Notify handler about new message
 func (h *Handler) Notify(name string, measurement models.Measurement) {
-	m := h.pools.GetMessage()
-	defer h.pools.PutMessage(m)
+	if h.outboundConnections.Empty() {
+		return
+	}
 
-	m.Reset()
-	m.Name = name
-	m.Value = measurement.ValueInterface()
-	m.Timestamp = measurement.Timestamp()
+	m := models.Message{
+		Name:      name,
+		Value:     measurement.ValueInterface(),
+		Timestamp: measurement.Timestamp(),
+	}
 
 	byteSlice, err := json.Marshal(m)
 	if err != nil {

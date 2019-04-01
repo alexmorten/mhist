@@ -48,3 +48,8 @@ func (c *ConnectionCollection) ForEach(f func(conn *Connection)) {
 		}
 	}
 }
+
+//Empty if no connections
+func (c *ConnectionCollection) Empty() bool {
+	return len(c.connections) == 0
+}

@@ -96,11 +96,8 @@ func (s *Server) Shutdown() {
 
 //HandleNewMessage coming from any source
 func (s *Server) HandleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
-	data := s.pools.GetMessage()
-	defer s.pools.PutMessage(data)
-
-	data.Reset()
-	err := json.Unmarshal(byteSlice, data)
+	data := models.Message{}
+	err := json.Unmarshal(byteSlice, &data)
 	if err != nil {
 		onError(err, http.StatusBadRequest)
 		return
@@ -118,7 +115,7 @@ func (s *Server) HandleNewMessage(byteSlice []byte, isReplication bool, onError 
 	s.store.Add(data.Name, measurement, isReplication)
 }
 
-func (s *Server) constructMeasurementFromMessage(message *models.Message) (measurement models.Measurement, err error) {
+func (s *Server) constructMeasurementFromMessage(message models.Message) (measurement models.Measurement, err error) {
 	switch message.Value.(type) {
 	case float64:
 		m := s.pools.GetNumericalMeasurement()
