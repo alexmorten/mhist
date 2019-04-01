@@ -19,10 +19,12 @@ type MessageHandler interface {
 type Handler struct {
 	messageHandler              MessageHandler
 	address                     string
-	outboundCollection          *ConnectionCollection
+	outboundConnections         *ConnectionCollection
+	allConnections              *ConnectionCollection
 	filterPerOutboundConnection map[*Connection]*models.FilterCollection
 	filterMutex                 *sync.RWMutex
 	pools                       *models.Pools
+	listener                    net.Listener
 }
 
 //NewHandler sets the wrapped handlers callbacks correctly, Run() still has to be called
@@ -30,7 +32,8 @@ func NewHandler(port int, messageHandler MessageHandler, pools *models.Pools) *H
 	return &Handler{
 		messageHandler:              messageHandler,
 		address:                     fmt.Sprintf("0.0.0.0:%v", port),
-		outboundCollection:          &ConnectionCollection{},
+		outboundConnections:         &ConnectionCollection{},
+		allConnections:              &ConnectionCollection{},
 		filterMutex:                 &sync.RWMutex{},
 		filterPerOutboundConnection: make(map[*Connection]*models.FilterCollection),
 		pools:                       pools,
@@ -39,13 +42,15 @@ func NewHandler(port int, messageHandler MessageHandler, pools *models.Pools) *H
 
 //Notify handler about new message
 func (h *Handler) Notify(name string, measurement models.Measurement) {
-	m := h.pools.GetMessage()
-	defer h.pools.PutMessage(m)
+	if h.outboundConnections.Empty() {
+		return
+	}
 
-	m.Reset()
-	m.Name = name
-	m.Value = measurement.ValueInterface()
-	m.Timestamp = measurement.Timestamp()
+	m := models.Message{
+		Name:      name,
+		Value:     measurement.ValueInterface(),
+		Timestamp: measurement.Timestamp(),
+	}
 
 	byteSlice, err := json.Marshal(m)
 	if err != nil {
@@ -54,7 +59,7 @@ func (h *Handler) Notify(name string, measurement models.Measurement) {
 	}
 	h.filterMutex.RLock()
 	defer h.filterMutex.RUnlock()
-	h.outboundCollection.ForEach(func(conn *Connection) {
+	h.outboundConnections.ForEach(func(conn *Connection) {
 		filter := h.filterPerOutboundConnection[conn]
 		if filter != nil {
 			if filter.Passes(name, measurement) {
@@ -72,16 +77,33 @@ func (h *Handler) Run() {
 	if err != nil {
 		panic("Error starting TCP server.")
 	}
+	h.listener = listener
 	defer listener.Close()
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println(err)
-			continue
+			break
 		}
 		go h.handleNewConnection(conn)
 	}
+}
+
+//Shutdown the Handler by closing the listener and all open connections
+func (h *Handler) Shutdown() {
+	if h.listener == nil {
+		return
+	}
+
+	err := h.listener.Close()
+	if err != nil {
+		fmt.Println("error closing tcp listener:", err)
+	}
+	h.allConnections.ForEach(func(conn *Connection) {
+		conn.Socket.Close()
+	})
+
 }
 
 func (h *Handler) onNewMessage(byteSlice []byte, isReplication bool) {
@@ -115,14 +137,21 @@ func (h *Handler) handleNewConnection(conn net.Conn) {
 		connectionWrapper.OnNewMessage(func(byteSlice []byte) {
 			h.onNewMessage(byteSlice, m.Replication)
 		})
+		connectionWrapper.OnConnectionClose(func() {
+			h.allConnections.RemoveConnection(connectionWrapper)
+		})
 	} else {
 		h.addFilterForConnection(m.FilterDefinition, connectionWrapper)
-		h.outboundCollection.AddConnection(connectionWrapper)
+		h.outboundConnections.AddConnection(connectionWrapper)
 		connectionWrapper.OnConnectionClose(func() {
-			h.outboundCollection.RemoveConnection(connectionWrapper)
+			h.outboundConnections.RemoveConnection(connectionWrapper)
 			h.removeFilterForConnection(connectionWrapper)
+			h.allConnections.RemoveConnection(connectionWrapper)
 		})
 	}
+
+	h.allConnections.AddConnection(connectionWrapper)
+
 	connectionWrapper.Listen()
 }
 

@@ -3,8 +3,12 @@ package mhist
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/alexmorten/mhist/models"
@@ -62,6 +66,15 @@ func NewServer(config ServerConfig) *Server {
 
 //Run the server
 func (s *Server) Run() {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		signal := <-signals
+		fmt.Printf("received %s, shutting down\n", signal)
+		s.Shutdown()
+	}()
+
 	s.waitGroup.Add(2)
 	go func() {
 		s.httpHandler.Run()
@@ -74,17 +87,17 @@ func (s *Server) Run() {
 	s.waitGroup.Wait()
 }
 
-//Shutdown all goroutines
+//Shutdown all goroutines and connections
 func (s *Server) Shutdown() {
+	s.httpHandler.Shutdown()
+	s.tcpHandler.Shutdown()
+	s.store.Shutdown()
 }
 
 //HandleNewMessage coming from any source
 func (s *Server) HandleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
-	data := s.pools.GetMessage()
-	defer s.pools.PutMessage(data)
-
-	data.Reset()
-	err := json.Unmarshal(byteSlice, data)
+	data := models.Message{}
+	err := json.Unmarshal(byteSlice, &data)
 	if err != nil {
 		onError(err, http.StatusBadRequest)
 		return
@@ -102,7 +115,7 @@ func (s *Server) HandleNewMessage(byteSlice []byte, isReplication bool, onError 
 	s.store.Add(data.Name, measurement, isReplication)
 }
 
-func (s *Server) constructMeasurementFromMessage(message *models.Message) (measurement models.Measurement, err error) {
+func (s *Server) constructMeasurementFromMessage(message models.Message) (measurement models.Measurement, err error) {
 	switch message.Value.(type) {
 	case float64:
 		m := s.pools.GetNumericalMeasurement()

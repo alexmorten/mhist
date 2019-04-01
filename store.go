@@ -1,8 +1,6 @@
 package mhist
 
 import (
-	"fmt"
-
 	"github.com/alexmorten/mhist/models"
 )
 
@@ -42,19 +40,11 @@ func (s *Store) Add(name string, m models.Measurement, isReplication bool) {
 
 //GetMeasurementsInTimeRange from disk store
 func (s *Store) GetMeasurementsInTimeRange(start, end int64, filterDefinition models.FilterDefinition) map[string][]models.Measurement {
-	if s.diskStore != nil {
-		return s.diskStore.GetMeasurementsInTimeRange(start, end, filterDefinition)
-	}
-	return map[string][]models.Measurement{}
+	return s.diskStore.GetMeasurementsInTimeRange(start, end, filterDefinition)
 }
 
 //GetStoredMetaInfo from Diskstore
 func (s *Store) GetStoredMetaInfo() []MeasurementTypeInfo {
-	if s.diskStore == nil {
-		fmt.Println("no diskstore added to store, can't access metadata")
-		return []MeasurementTypeInfo{}
-	}
-
 	return s.diskStore.GetAllStoredInfos()
 }
 

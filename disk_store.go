@@ -12,6 +12,7 @@ import (
 )
 
 const maxBuffer = 12 * 1024
+const timeBetweenWrites = 5 * time.Second
 
 var dataPath = "data"
 
@@ -65,9 +66,7 @@ func NewDiskStore(pools *models.Pools, maxFileSize, maxDiskSize int) (*DiskStore
 
 //Notify DiskStore about new Measurement
 func (s *DiskStore) Notify(name string, m models.Measurement) {
-	ownMeasurement := m.CopyFrom(s.pools)
 	s.Add(name, m)
-	s.pools.PutMeasurement(ownMeasurement)
 }
 
 //Add measurement to block
@@ -114,7 +113,6 @@ func (s *DiskStore) Shutdown() {
 
 //Listen for new measurements
 func (s *DiskStore) Listen() {
-	timeBetweenWrites := 5 * time.Second
 	timer := time.NewTimer(timeBetweenWrites)
 loop:
 	for {
@@ -145,7 +143,7 @@ func (s *DiskStore) commit() {
 		fmt.Printf("couldn't get file List: %v", err)
 		return
 	}
-	defer func() { s.block = Block{} }()
+	defer func() { s.block = s.block[:0] }()
 	if len(fileList) == 0 {
 		WriteBlockToFile(s.block)
 		return
