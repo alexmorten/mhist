@@ -200,7 +200,8 @@ func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterD
 			var measurement models.Measurement
 			switch measurementType {
 			case models.MeasurementNumerical:
-				measurement = &serializedMeasurement.Numerical
+				measurementCopy := serializedMeasurement.Numerical
+				measurement = &measurementCopy
 
 			case models.MeasurementCategorical:
 				measurement = &models.Categorical{
