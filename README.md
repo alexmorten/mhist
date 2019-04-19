@@ -17,9 +17,6 @@ Mhist also supports barebones data-replication to other instances of itself (the
 
 ### setup
 
-assuming you have a working go installation:
-clone this repo into `$GOPATH/src/github.com/alexmorten/mhist`.
-
 This uses [go mod for dependency management](https://github.com/golang/go/wiki/Modules)
 
 To see how to change the default configuration, run ` go run main/main.go -h`
