@@ -11,7 +11,6 @@ Mhist also supports barebones data-replication to other instances of itself (the
 - measurements are received by mhist in the order they are generated
 - there are only two types of measurements: `numerical`, sent to mhist as numbers, and `categorical`, sent to mhist as strings
 - measurement types don't change for a certain measurement name.
-- measurements are taken in regular intervals.
 - it is known in advance how much memory and diskspace can be used by mhist.
 - when retrieving measurements you want to retrieve measurements of all names more often than just certain names.
 
