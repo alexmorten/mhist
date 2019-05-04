@@ -34,6 +34,7 @@ func (h *HTTPHandler) Run() {
 		Addr: fmt.Sprintf(":%v", h.Port),
 	}
 
+	fmt.Println("http_handler running on ", h.httpServer.Addr)
 	err := h.httpServer.ListenAndServe()
 	if err != nil {
 		fmt.Println(err)
