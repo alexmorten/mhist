@@ -1,4 +1,4 @@
-# ppp-mhist
+# mhist
 ## simple measurement history logger
 This is a very simple measurement database, that receives measurements (consisting of name, value and optionally a timestamp) through tcp or http. If you don't send a timestamp with the measurement, the current time is used (there are rarely reasons to send a different timestamp).
 Measurements are stored on disk
