@@ -34,4 +34,4 @@ To see how to change the default configuration, run ` go run main/main.go -h`
 
 - [X] refactor package layout. Types used all over the place should be in a package like `models` instead of being defined in the `mhist` package.
 - [ ] historical access should be also possible over tcp. For example streaming all measurements starting from a certain timestamp. This would also enable:
-- [ ] starting a new mhist instance that grabs all data that was already received by another instance and also gets all replicated date from that point forward.
+- [ ] starting a new mhist instance that grabs all data that was already received by another instance and also gets all replicated data from that point forward.
