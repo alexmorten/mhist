@@ -73,6 +73,8 @@ func (h *Handler) Notify(name string, measurement models.Measurement) {
 
 //Run listens for new connections
 func (h *Handler) Run() {
+	fmt.Println("tcp_handler running on ", h.address)
+
 	listener, err := net.Listen("tcp", h.address)
 	if err != nil {
 		panic("Error starting TCP server.")

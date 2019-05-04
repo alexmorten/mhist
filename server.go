@@ -48,6 +48,7 @@ func NewServer(config ServerConfig) *Server {
 		pools:     pools,
 		waitGroup: &sync.WaitGroup{},
 	}
+
 	tcpHandler := tcp.NewHandler(config.TCPPort, server, pools)
 	server.tcpHandler = tcpHandler
 	store.AddSubscriber(tcpHandler)
@@ -56,6 +57,8 @@ func NewServer(config ServerConfig) *Server {
 		Server: server,
 		Port:   config.HTTPPort,
 	}
+	httpHandler.Init()
+
 	server.httpHandler = httpHandler
 	for _, address := range config.ReplicationAddresses {
 		replication := tcp.NewReplication(address, pools)

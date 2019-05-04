@@ -22,15 +22,19 @@ type HTTPHandler struct {
 	httpServer *http.Server
 }
 
-//Run the handler
-func (h *HTTPHandler) Run() {
+//Init the http mux
+func (h *HTTPHandler) Init() {
 	http.HandleFunc("/meta", h.serveStoredMeta)
 	http.Handle("/", h)
+}
 
+//Run the handler
+func (h *HTTPHandler) Run() {
 	h.httpServer = &http.Server{
 		Addr: fmt.Sprintf(":%v", h.Port),
 	}
 
+	fmt.Println("http_handler running on ", h.httpServer.Addr)
 	err := h.httpServer.ListenAndServe()
 	if err != nil {
 		fmt.Println(err)
