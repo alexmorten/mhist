@@ -19,8 +19,8 @@ type Measurement interface {
 
 //Numerical represents a single meassured value in time
 type Numerical struct {
-	Ts    int64
-	Value float64
+	Ts    int64   `json:"ts"`
+	Value float64 `json:"value"`
 }
 
 const numericalSize = int(unsafe.Sizeof(Numerical{}))
@@ -72,8 +72,8 @@ func (n *Numerical) CopyFrom(p *Pools) Measurement {
 
 //Categorical represents a single categorical meassured value in time
 type Categorical struct {
-	Ts    int64
-	Value string
+	Ts    int64  `json:"ts"`
+	Value string `json:"value"`
 }
 
 const categoricalSize = int(unsafe.Sizeof(Categorical{}))
