@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/alexmorten/mhist/models"
+	"github.com/rs/cors"
 )
 
 //HTTPHandler handles http connections
@@ -20,18 +21,27 @@ type HTTPHandler struct {
 	Server     *Server
 	Port       int
 	httpServer *http.Server
+
+	corsHandler http.Handler
 }
 
 //Init the http mux
 func (h *HTTPHandler) Init() {
-	http.HandleFunc("/meta", h.serveStoredMeta)
-	http.Handle("/", h)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/meta", h.serveStoredMeta)
+	mux.Handle("/", h)
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST"},
+	})
+	h.corsHandler = c.Handler(mux)
 }
 
 //Run the handler
 func (h *HTTPHandler) Run() {
 	h.httpServer = &http.Server{
-		Addr: fmt.Sprintf(":%v", h.Port),
+		Addr:    fmt.Sprintf(":%v", h.Port),
+		Handler: h.corsHandler,
 	}
 
 	fmt.Println("http_handler running on ", h.httpServer.Addr)
