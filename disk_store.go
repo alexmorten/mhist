@@ -192,6 +192,10 @@ func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterD
 				continue
 			}
 
+			if serializedMeasurement.Ts < start || serializedMeasurement.Ts > end {
+				continue
+			}
+
 			measurementType := s.meta.GetTypeForID(serializedMeasurement.ID)
 			if measurementType == 0 {
 				continue
