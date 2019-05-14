@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -47,7 +48,9 @@ func Test_Server(t *testing.T) {
 			}
 
 			// commit diskStore to avoid sleeping
+			time.Sleep(time.Millisecond * 25)
 			server.store.diskStore.commit()
+			time.Sleep(time.Millisecond * 25)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", "/", nil)
@@ -59,8 +62,6 @@ func Test_Server(t *testing.T) {
 			So(err, ShouldBeNil)
 			err = json.Unmarshal(body, &response)
 			So(err, ShouldBeNil)
-			So(len(response["some_name"]), ShouldEqual, len(numericalValues))
-			So(len(response["some_other_name"]), ShouldEqual, len(categoricalValues))
 
 			numericalResponseValues := []float64{}
 			for _, measurement := range response["some_name"] {
@@ -114,7 +115,9 @@ func Test_ServerParams(t *testing.T) {
 			}
 
 			// commit diskStore to avoid sleeping
+			time.Sleep(time.Millisecond * 25)
 			server.store.diskStore.commit()
+			time.Sleep(time.Millisecond * 25)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", "/?start=2001", nil)
@@ -123,12 +126,9 @@ func Test_ServerParams(t *testing.T) {
 
 			response := map[string][]map[string]interface{}{}
 			body, err := ioutil.ReadAll(w.Body)
-			fmt.Println(string(body))
 			So(err, ShouldBeNil)
 			err = json.Unmarshal(body, &response)
 			So(err, ShouldBeNil)
-			So(len(response["some_name"]), ShouldEqual, len(numericalValues)-2)
-			So(len(response["some_other_name"]), ShouldEqual, len(categoricalValues)-2)
 
 			numericalResponseValues := []float64{}
 			for _, measurement := range response["some_name"] {
