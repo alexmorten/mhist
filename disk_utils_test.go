@@ -3,15 +3,16 @@ package mhist
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_timestampsFromFileName(t *testing.T) {
-	Convey("gets timestamps from filename", t, func() {
+	t.Run("gets timestamps from filename", func(t *testing.T) {
 		fileName := "1234-56789.csv"
 		info, err := timestampsFromFileName(fileName)
-		So(err, ShouldBeNil)
-		So(info.oldestTs, ShouldEqual, 1234)
-		So(info.latestTs, ShouldEqual, 56789)
+		require.Nil(t, err)
+		assert.EqualValues(t, 1234, info.oldestTs)
+		assert.EqualValues(t, 56789, info.latestTs, 56789)
 	})
 }

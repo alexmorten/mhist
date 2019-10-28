@@ -11,7 +11,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Server(t *testing.T) {
@@ -23,8 +24,8 @@ func Test_Server(t *testing.T) {
 	}()
 	server := NewServer(ServerConfig{MemorySize: 24 * 1024 * 1024, DiskSize: 24 * 1024 * 1024})
 
-	Convey("HTTPHandler", t, func() {
-		Convey("POSTing and GETing measurements works", func() {
+	t.Run("HTTPHandler", func(t *testing.T) {
+		t.Run("POSTing and GETing measurements works", func(t *testing.T) {
 			numericalValues := []float64{10, 60, 40, 20, 50, 42}
 			for _, value := range numericalValues {
 				w := httptest.NewRecorder()
@@ -33,7 +34,7 @@ func Test_Server(t *testing.T) {
 				req, _ := http.NewRequest("POST", "/", reader)
 
 				server.httpHandler.ServeHTTP(w, req)
-				So(w.Code, ShouldEqual, 200)
+				assert.Equal(t, 200, w.Code)
 			}
 
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
@@ -44,7 +45,7 @@ func Test_Server(t *testing.T) {
 				req, _ := http.NewRequest("POST", "/", reader)
 
 				server.httpHandler.ServeHTTP(w, req)
-				So(w.Code, ShouldEqual, 200)
+				assert.Equal(t, 200, w.Code)
 			}
 
 			// commit diskStore to avoid sleeping
@@ -55,29 +56,29 @@ func Test_Server(t *testing.T) {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", "/", nil)
 			server.httpHandler.ServeHTTP(w, req)
-			So(w.Code, ShouldEqual, 200)
+			assert.Equal(t, 200, w.Code)
 
 			response := map[string][]map[string]interface{}{}
 			body, err := ioutil.ReadAll(w.Body)
-			So(err, ShouldBeNil)
+			require.Nil(t, err)
+
 			err = json.Unmarshal(body, &response)
-			So(err, ShouldBeNil)
+			require.Nil(t, err)
 
 			numericalResponseValues := []float64{}
 			for _, measurement := range response["some_name"] {
 				numericalResponseValues = append(numericalResponseValues, measurement["value"].(float64))
 			}
 
-			So(numericalResponseValues, ShouldResemble, numericalValues)
+			assert.ElementsMatch(t, numericalResponseValues, numericalValues)
 
 			categoricalResponseValues := []string{}
 			for _, measurement := range response["some_other_name"] {
 				categoricalResponseValues = append(categoricalResponseValues, measurement["value"].(string))
 			}
 
-			So(categoricalResponseValues, ShouldResemble, categoricalValues)
+			assert.ElementsMatch(t, categoricalResponseValues, categoricalValues)
 		})
-
 	})
 }
 
@@ -90,8 +91,8 @@ func Test_ServerParams(t *testing.T) {
 	}()
 	server := NewServer(ServerConfig{MemorySize: 24 * 1024 * 1024, DiskSize: 24 * 1024 * 1024})
 
-	Convey("HTTPHandler", t, func() {
-		Convey("POSTing and GETing measurements works", func() {
+	t.Run("HTTPHandler", func(t *testing.T) {
+		t.Run("POSTing and GETing measurements works", func(t *testing.T) {
 			numericalValues := []float64{60, 10, 40, 20, 50, 42}
 			for i, value := range numericalValues {
 				w := httptest.NewRecorder()
@@ -100,7 +101,7 @@ func Test_ServerParams(t *testing.T) {
 				req, _ := http.NewRequest("POST", "/", reader)
 
 				server.httpHandler.ServeHTTP(w, req)
-				So(w.Code, ShouldEqual, 200)
+				assert.Equal(t, 200, w.Code)
 			}
 
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
@@ -111,7 +112,7 @@ func Test_ServerParams(t *testing.T) {
 				req, _ := http.NewRequest("POST", "/", reader)
 
 				server.httpHandler.ServeHTTP(w, req)
-				So(w.Code, ShouldEqual, 200)
+				assert.Equal(t, 200, w.Code)
 			}
 
 			// commit diskStore to avoid sleeping
@@ -122,27 +123,27 @@ func Test_ServerParams(t *testing.T) {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", "/?start=2001", nil)
 			server.httpHandler.ServeHTTP(w, req)
-			So(w.Code, ShouldEqual, 200)
+			assert.Equal(t, 200, w.Code)
 
 			response := map[string][]map[string]interface{}{}
 			body, err := ioutil.ReadAll(w.Body)
-			So(err, ShouldBeNil)
+			require.Nil(t, err)
 			err = json.Unmarshal(body, &response)
-			So(err, ShouldBeNil)
+			require.Nil(t, err)
 
 			numericalResponseValues := []float64{}
 			for _, measurement := range response["some_name"] {
 				numericalResponseValues = append(numericalResponseValues, measurement["value"].(float64))
 			}
 
-			So(numericalResponseValues, ShouldResemble, numericalValues[2:])
+			assert.ElementsMatch(t, numericalResponseValues, numericalValues[2:])
 
 			categoricalResponseValues := []string{}
 			for _, measurement := range response["some_other_name"] {
 				categoricalResponseValues = append(categoricalResponseValues, measurement["value"].(string))
 			}
 
-			So(categoricalResponseValues, ShouldResemble, categoricalValues[2:])
+			assert.ElementsMatch(t, categoricalResponseValues, categoricalValues[2:])
 		})
 
 	})

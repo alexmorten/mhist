@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/alexmorten/mhist/models"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_BlockMemoryDumpingAndLoading(t *testing.T) {
-	Convey("Underlying bytes works", t, func() {
+	t.Run("Underlying bytes works", func(t *testing.T) {
 		m1 := SerializedMeasurement{ID: 1, Numerical: models.Numerical{Ts: 2, Value: 4}}
 		m2 := SerializedMeasurement{ID: 5, Numerical: models.Numerical{Ts: 6, Value: 7}}
 		m3 := SerializedMeasurement{ID: 100, Numerical: models.Numerical{Ts: 200, Value: 300}}
@@ -21,7 +21,7 @@ func Test_BlockMemoryDumpingAndLoading(t *testing.T) {
 		copy(bCopy, b)
 
 		newBlock := BlockFromByteSlice(bCopy)
-		So(newBlock, ShouldResemble, Block{m1, m2, m3})
+		assert.ElementsMatch(t, newBlock, Block{m1, m2, m3})
 	})
 }
 
