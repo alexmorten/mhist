@@ -186,40 +186,50 @@ func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterD
 		}
 		block := BlockFromByteSlice(byteSlice)
 
-		for _, serializedMeasurement := range block {
-			name := s.meta.GetNameForID(serializedMeasurement.ID)
-			if name == "" {
-				continue
-			}
+		s.appendPassingMeasurements(block, start, end, filter, result)
 
-			if serializedMeasurement.Ts < start || serializedMeasurement.Ts > end {
-				continue
-			}
+	}
 
-			measurementType := s.meta.GetTypeForID(serializedMeasurement.ID)
-			if measurementType == 0 {
-				continue
-			}
-
-			var measurement models.Measurement
-			switch measurementType {
-			case models.MeasurementNumerical:
-				measurementCopy := serializedMeasurement.Numerical
-				measurement = &measurementCopy
-
-			case models.MeasurementCategorical:
-				measurement = &models.Categorical{
-					Ts:    serializedMeasurement.Ts,
-					Value: s.meta.CategoricalMapping.GetOrCreateValueIDMap(serializedMeasurement.ID).ValueIDToValue[serializedMeasurement.Value],
-				}
-			}
-			if filter.Passes(name, measurement) {
-				result[name] = append(result[name], measurement)
-			}
-		}
+	// the range we read includes the currently buffered block
+	if len(files) == 0 || end > files[len(files)-1].latestTs {
+		s.appendPassingMeasurements(s.block, start, end, filter, result)
 	}
 
 	return result
+}
+
+func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, filter *models.FilterCollection, result readResult) {
+	for _, serializedMeasurement := range block {
+		name := s.meta.GetNameForID(serializedMeasurement.ID)
+		if name == "" {
+			continue
+		}
+
+		if serializedMeasurement.Ts < start || serializedMeasurement.Ts > end {
+			continue
+		}
+
+		measurementType := s.meta.GetTypeForID(serializedMeasurement.ID)
+		if measurementType == 0 {
+			continue
+		}
+
+		var measurement models.Measurement
+		switch measurementType {
+		case models.MeasurementNumerical:
+			measurementCopy := serializedMeasurement.Numerical
+			measurement = &measurementCopy
+
+		case models.MeasurementCategorical:
+			measurement = &models.Categorical{
+				Ts:    serializedMeasurement.Ts,
+				Value: s.meta.CategoricalMapping.GetOrCreateValueIDMap(serializedMeasurement.ID).ValueIDToValue[serializedMeasurement.Value],
+			}
+		}
+		if filter.Passes(name, measurement) {
+			result[name] = append(result[name], measurement)
+		}
+	}
 }
 
 //SerializedMeasurement is a numerical measureent extended by ID, can be dumped to disk directly
