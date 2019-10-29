@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,11 +46,6 @@ func Test_Server(t *testing.T) {
 				server.httpHandler.ServeHTTP(w, req)
 				assert.Equal(t, 200, w.Code)
 			}
-
-			// commit diskStore to avoid sleeping
-			time.Sleep(time.Millisecond * 25)
-			server.store.diskStore.commit()
-			time.Sleep(time.Millisecond * 25)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", "/", nil)
@@ -107,18 +101,13 @@ func Test_ServerParams(t *testing.T) {
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
 			for i, value := range categoricalValues {
 				w := httptest.NewRecorder()
-				body := fmt.Sprintf(`{"name":"some_other_name","value":"%v", "timestamp":%v}`, value, i*1000)
+				body := fmt.Sprintf(`{"name":"some_other_name","value":"%v", "timestamp":%v}`, value, i*1000+1000)
 				reader := bytes.NewReader([]byte(body))
 				req, _ := http.NewRequest("POST", "/", reader)
 
 				server.httpHandler.ServeHTTP(w, req)
 				assert.Equal(t, 200, w.Code)
 			}
-
-			// commit diskStore to avoid sleeping
-			time.Sleep(time.Millisecond * 25)
-			server.store.diskStore.commit()
-			time.Sleep(time.Millisecond * 25)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", "/?start=2001", nil)
@@ -145,6 +134,5 @@ func Test_ServerParams(t *testing.T) {
 
 			assert.ElementsMatch(t, categoricalResponseValues, categoricalValues[2:])
 		})
-
 	})
 }
