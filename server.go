@@ -1,34 +1,25 @@
 package mhist
 
 import (
-	"encoding/json"
-	"errors"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/alexmorten/mhist/models"
-	"github.com/alexmorten/mhist/tcp"
 )
 
 //Server is the handler for requests
 type Server struct {
 	store       *Store
 	pools       *models.Pools
-	httpHandler *HTTPHandler
-	tcpHandler  *tcp.Handler
 	grpcHandler *GrpcHandler
 	waitGroup   *sync.WaitGroup
 }
 
 //ServerConfig ...
 type ServerConfig struct {
-	HTTPPort   int
-	TCPPort    int
 	GrpcPort   int
 	MemorySize int
 	DiskSize   int
@@ -50,18 +41,6 @@ func NewServer(config ServerConfig) *Server {
 		waitGroup: &sync.WaitGroup{},
 	}
 
-	tcpHandler := tcp.NewHandler(config.TCPPort, server, pools)
-	server.tcpHandler = tcpHandler
-	store.AddSubscriber(tcpHandler)
-
-	httpHandler := &HTTPHandler{
-		Server: server,
-		Port:   config.HTTPPort,
-	}
-	httpHandler.Init()
-
-	server.httpHandler = httpHandler
-
 	grpcHandler := NewGrpcHandler(server, config.GrpcPort)
 	server.grpcHandler = grpcHandler
 	store.AddSubscriber(grpcHandler)
@@ -80,76 +59,12 @@ func (s *Server) Run() {
 		s.Shutdown()
 	}()
 
-	s.waitGroup.Add(3)
-	go func() {
-		s.httpHandler.Run()
-		s.waitGroup.Done()
-	}()
-	go func() {
-		s.tcpHandler.Run()
-		s.waitGroup.Done()
-	}()
-	go func() {
-		s.grpcHandler.Run()
-		s.waitGroup.Done()
-	}()
-	s.waitGroup.Wait()
+	s.grpcHandler.Run()
 }
 
 //Shutdown all goroutines and connections
 func (s *Server) Shutdown() {
-	s.httpHandler.Shutdown()
-	s.tcpHandler.Shutdown()
 	s.grpcHandler.Shutdown()
 
 	s.store.Shutdown()
-}
-
-//HandleNewMessage coming from any source
-func (s *Server) HandleNewMessage(byteSlice []byte, onError func(err error, status int)) {
-	data := models.Message{}
-	err := json.Unmarshal(byteSlice, &data)
-	if err != nil {
-		onError(err, http.StatusBadRequest)
-		return
-	}
-	if data.Name == "" {
-		err = errors.New("name can't be empty")
-		onError(err, http.StatusBadRequest)
-		return
-	}
-	measurement, err := s.constructMeasurementFromMessage(data)
-	if err != nil {
-		onError(err, http.StatusBadRequest)
-		return
-	}
-	s.store.Add(data.Name, measurement)
-}
-
-func (s *Server) constructMeasurementFromMessage(message models.Message) (measurement models.Measurement, err error) {
-	switch message.Value.(type) {
-	case float64:
-		m := s.pools.GetNumericalMeasurement()
-		m.Reset()
-		if message.Timestamp == 0 {
-			m.Ts = time.Now().UnixNano()
-		} else {
-			m.Ts = message.Timestamp
-		}
-		m.Value = message.Value.(float64)
-		measurement = m
-	case string:
-		m := s.pools.GetCategoricalMeasurement()
-		m.Reset()
-		if message.Timestamp == 0 {
-			m.Ts = time.Now().UnixNano()
-		} else {
-			m.Ts = message.Timestamp
-		}
-		m.Value = message.Value.(string)
-		measurement = m
-	default:
-		return nil, errors.New("value is neither a float nor a string")
-	}
-	return
 }
