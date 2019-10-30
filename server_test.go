@@ -1,14 +1,13 @@
 package mhist
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/alexmorten/mhist/models"
+	"github.com/alexmorten/mhist/proto"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,52 +22,28 @@ func Test_Server(t *testing.T) {
 	}()
 	server := NewServer(ServerConfig{MemorySize: 24 * 1024 * 1024, DiskSize: 24 * 1024 * 1024})
 
-	t.Run("HTTPHandler", func(t *testing.T) {
-		t.Run("POSTing and GETing measurements works", func(t *testing.T) {
-			numericalValues := []float64{10, 60, 40, 20, 50, 42}
-			for _, value := range numericalValues {
-				w := httptest.NewRecorder()
-				body := fmt.Sprintf(`{"name":"some_name","value":%v}`, value)
-				reader := bytes.NewReader([]byte(body))
-				req, _ := http.NewRequest("POST", "/", reader)
-
-				server.httpHandler.ServeHTTP(w, req)
-				assert.Equal(t, 200, w.Code)
-			}
-
+	t.Run("GrpcHandler", func(t *testing.T) {
+		t.Run("Storing and Retrieving measurements without filters", func(t *testing.T) {
+			numericalValues := []float64{60, 10, 40, 20, 50, 42}
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
-			for _, value := range categoricalValues {
-				w := httptest.NewRecorder()
-				body := fmt.Sprintf(`{"name":"some_other_name","value":"%v"}`, value)
-				reader := bytes.NewReader([]byte(body))
-				req, _ := http.NewRequest("POST", "/", reader)
+			serverTestSetup(t, server, numericalValues, categoricalValues, func(_ int) int64 { return 0 })
 
-				server.httpHandler.ServeHTTP(w, req)
-				assert.Equal(t, 200, w.Code)
-			}
-
-			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/", nil)
-			server.httpHandler.ServeHTTP(w, req)
-			assert.Equal(t, 200, w.Code)
-
-			response := map[string][]map[string]interface{}{}
-			body, err := ioutil.ReadAll(w.Body)
-			require.Nil(t, err)
-
-			err = json.Unmarshal(body, &response)
-			require.Nil(t, err)
+			request := &proto.RetrieveRequest{}
+			response, err := server.grpcHandler.Retrieve(context.Background(), request)
+			require.NoError(t, err)
 
 			numericalResponseValues := []float64{}
-			for _, measurement := range response["some_name"] {
-				numericalResponseValues = append(numericalResponseValues, measurement["value"].(float64))
+			fmt.Println(response)
+			for _, measurement := range response.Histories["some_name"].Measurements {
+				numericalResponseValues = append(numericalResponseValues, measurement.Type.(*proto.Measurement_Numerical).Numerical.Value)
 			}
 
 			assert.ElementsMatch(t, numericalResponseValues, numericalValues)
 
 			categoricalResponseValues := []string{}
-			for _, measurement := range response["some_other_name"] {
-				categoricalResponseValues = append(categoricalResponseValues, measurement["value"].(string))
+			fmt.Println(response.Histories)
+			for _, measurement := range response.Histories["some_other_name"].Measurements {
+				categoricalResponseValues = append(categoricalResponseValues, measurement.Type.(*proto.Measurement_Categorical).Categorical.Value)
 			}
 
 			assert.ElementsMatch(t, categoricalResponseValues, categoricalValues)
@@ -76,7 +51,7 @@ func Test_Server(t *testing.T) {
 	})
 }
 
-func Test_ServerParams(t *testing.T) {
+func Test_ServerFilter(t *testing.T) {
 	formerDataPath := dataPath
 	dataPath = "test_data"
 	defer func() {
@@ -85,54 +60,52 @@ func Test_ServerParams(t *testing.T) {
 	}()
 	server := NewServer(ServerConfig{MemorySize: 24 * 1024 * 1024, DiskSize: 24 * 1024 * 1024})
 
-	t.Run("HTTPHandler", func(t *testing.T) {
-		t.Run("POSTing and GETing measurements works", func(t *testing.T) {
+	t.Run("GrpcHandler", func(t *testing.T) {
+		t.Run("Storing and Retrieving measurements with filters", func(t *testing.T) {
 			numericalValues := []float64{60, 10, 40, 20, 50, 42}
-			for i, value := range numericalValues {
-				w := httptest.NewRecorder()
-				body := fmt.Sprintf(`{"name":"some_name","value":%v, "timestamp":%v}`, value, i*1000+1000)
-				reader := bytes.NewReader([]byte(body))
-				req, _ := http.NewRequest("POST", "/", reader)
-
-				server.httpHandler.ServeHTTP(w, req)
-				assert.Equal(t, 200, w.Code)
-			}
-
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
-			for i, value := range categoricalValues {
-				w := httptest.NewRecorder()
-				body := fmt.Sprintf(`{"name":"some_other_name","value":"%v", "timestamp":%v}`, value, i*1000+1000)
-				reader := bytes.NewReader([]byte(body))
-				req, _ := http.NewRequest("POST", "/", reader)
-
-				server.httpHandler.ServeHTTP(w, req)
-				assert.Equal(t, 200, w.Code)
+			serverTestSetup(t, server, numericalValues, categoricalValues, func(i int) int64 { return int64(i*1000 + 1000) })
+			request := &proto.RetrieveRequest{
+				Start: 2001,
 			}
-
-			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/?start=2001", nil)
-			server.httpHandler.ServeHTTP(w, req)
-			assert.Equal(t, 200, w.Code)
-
-			response := map[string][]map[string]interface{}{}
-			body, err := ioutil.ReadAll(w.Body)
-			require.Nil(t, err)
-			err = json.Unmarshal(body, &response)
-			require.Nil(t, err)
+			response, err := server.grpcHandler.Retrieve(context.Background(), request)
+			require.NoError(t, err)
 
 			numericalResponseValues := []float64{}
-			for _, measurement := range response["some_name"] {
-				numericalResponseValues = append(numericalResponseValues, measurement["value"].(float64))
+			for _, measurement := range response.Histories["some_name"].Measurements {
+				numericalResponseValues = append(numericalResponseValues, measurement.Type.(*proto.Measurement_Numerical).Numerical.Value)
 			}
 
 			assert.ElementsMatch(t, numericalResponseValues, numericalValues[2:])
 
 			categoricalResponseValues := []string{}
-			for _, measurement := range response["some_other_name"] {
-				categoricalResponseValues = append(categoricalResponseValues, measurement["value"].(string))
+			fmt.Println(response.Histories)
+			for _, measurement := range response.Histories["some_other_name"].Measurements {
+				categoricalResponseValues = append(categoricalResponseValues, measurement.Type.(*proto.Measurement_Categorical).Categorical.Value)
 			}
 
 			assert.ElementsMatch(t, categoricalResponseValues, categoricalValues[2:])
 		})
 	})
+}
+
+func serverTestSetup(t *testing.T, server *Server, numericalValues []float64, categoricalValues []string, tsForIndex func(i int) int64) {
+
+	for i, value := range numericalValues {
+		message := &proto.MeasurementMessage{
+			Name:        "some_name",
+			Measurement: proto.MeasurementFromModel(&models.Numerical{Ts: tsForIndex(i), Value: value}),
+		}
+		_, err := server.grpcHandler.Store(context.Background(), message)
+		assert.NoError(t, err)
+	}
+
+	for i, value := range categoricalValues {
+		message := &proto.MeasurementMessage{
+			Name:        "some_other_name",
+			Measurement: proto.MeasurementFromModel(&models.Categorical{Ts: tsForIndex(i), Value: value}),
+		}
+		_, err := server.grpcHandler.Store(context.Background(), message)
+		assert.NoError(t, err)
+	}
 }
