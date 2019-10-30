@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -44,10 +45,10 @@ func (h *HTTPHandler) Run() {
 		Handler: h.corsHandler,
 	}
 
-	fmt.Println("http_handler running on ", h.httpServer.Addr)
+	log.Println("http_handler running on ", h.httpServer.Addr)
 	err := h.httpServer.ListenAndServe()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -63,7 +64,7 @@ func (h *HTTPHandler) Shutdown() {
 func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(r)
+			log.Println(r)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}()
@@ -78,7 +79,7 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) serveStoredMeta(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(r)
+			log.Println(r)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}()
@@ -171,7 +172,7 @@ type errorResponse struct {
 }
 
 func renderError(err error, w http.ResponseWriter, status int) {
-	fmt.Println(err)
+	log.Println(err)
 	resp := &errorResponse{Error: err.Error()}
 	data, err := json.Marshal(resp)
 	if err == nil {

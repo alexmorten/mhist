@@ -3,7 +3,7 @@ package mhist
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -76,7 +76,7 @@ func (s *Server) Run() {
 
 	go func() {
 		signal := <-signals
-		fmt.Printf("received %s, shutting down\n", signal)
+		log.Printf("received %s, shutting down\n", signal)
 		s.Shutdown()
 	}()
 

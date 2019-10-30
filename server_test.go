@@ -2,7 +2,6 @@ package mhist
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -33,7 +32,6 @@ func Test_Server(t *testing.T) {
 			require.NoError(t, err)
 
 			numericalResponseValues := []float64{}
-			fmt.Println(response)
 			for _, measurement := range response.Histories["some_name"].Measurements {
 				numericalResponseValues = append(numericalResponseValues, measurement.Type.(*proto.Measurement_Numerical).Numerical.Value)
 			}
@@ -41,7 +39,6 @@ func Test_Server(t *testing.T) {
 			assert.ElementsMatch(t, numericalResponseValues, numericalValues)
 
 			categoricalResponseValues := []string{}
-			fmt.Println(response.Histories)
 			for _, measurement := range response.Histories["some_other_name"].Measurements {
 				categoricalResponseValues = append(categoricalResponseValues, measurement.Type.(*proto.Measurement_Categorical).Categorical.Value)
 			}
@@ -79,7 +76,6 @@ func Test_ServerFilter(t *testing.T) {
 			assert.ElementsMatch(t, numericalResponseValues, numericalValues[2:])
 
 			categoricalResponseValues := []string{}
-			fmt.Println(response.Histories)
 			for _, measurement := range response.Histories["some_other_name"].Measurements {
 				categoricalResponseValues = append(categoricalResponseValues, measurement.Type.(*proto.Measurement_Categorical).Categorical.Value)
 			}

@@ -3,7 +3,7 @@ package tcp
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"log"
 
 	"github.com/alexmorten/mhist/models"
 )
@@ -34,7 +34,7 @@ func (s *Subscriber) Read() error {
 	for {
 		byteSlice, err := reader.ReadSlice('\n')
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return err
 		}
 		s.newMessageChan <- byteSlice

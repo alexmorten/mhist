@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 
@@ -54,7 +55,7 @@ func (h *Handler) Notify(name string, measurement models.Measurement) {
 
 	byteSlice, err := json.Marshal(m)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	h.filterMutex.RLock()
@@ -66,14 +67,14 @@ func (h *Handler) Notify(name string, measurement models.Measurement) {
 				conn.Write(byteSlice)
 			}
 		} else {
-			fmt.Println("Filter for outbound connection was nil, please investigate!")
+			log.Println("Filter for outbound connection was nil, please investigate!")
 		}
 	})
 }
 
 //Run listens for new connections
 func (h *Handler) Run() {
-	fmt.Println("tcp_handler running on ", h.address)
+	log.Println("tcp_handler running on ", h.address)
 
 	listener, err := net.Listen("tcp", h.address)
 	if err != nil {
@@ -85,7 +86,7 @@ func (h *Handler) Run() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			break
 		}
 		go h.handleNewConnection(conn)
@@ -100,7 +101,7 @@ func (h *Handler) Shutdown() {
 
 	err := h.listener.Close()
 	if err != nil {
-		fmt.Println("error closing tcp listener:", err)
+		log.Println("error closing tcp listener:", err)
 	}
 	h.allConnections.ForEach(func(conn *Connection) {
 		conn.Socket.Close()
@@ -111,7 +112,7 @@ func (h *Handler) Shutdown() {
 func (h *Handler) onNewMessage(byteSlice []byte) {
 	h.messageHandler.HandleNewMessage(byteSlice, func(err error, _ int) {
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 	})
 }
@@ -120,14 +121,14 @@ func (h *Handler) handleNewConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	byteSlice, err := reader.ReadSlice('\n')
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		conn.Close()
 		return
 	}
 	m := &models.SubscriptionMessage{}
 	err = json.Unmarshal(byteSlice, m)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		conn.Close()
 		return
 	}

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -37,7 +37,7 @@ func (c *Client) Connect() {
 	for {
 		conn, err := net.Dial("tcp", c.Address)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -47,7 +47,7 @@ func (c *Client) Connect() {
 		}
 		_, err = conn.Write(append(message, '\n'))
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
