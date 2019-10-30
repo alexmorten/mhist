@@ -20,7 +20,6 @@ var dataPath = "data"
 type DiskStore struct {
 	block       Block
 	meta        *DiskMeta
-	pools       *models.Pools
 	addChan     chan addMessage
 	readChan    chan readMessage
 	stopChan    chan struct{}
@@ -43,7 +42,7 @@ type readMessage struct {
 }
 
 //NewDiskStore initializes the DiskBlockRoutine
-func NewDiskStore(pools *models.Pools, maxFileSize, maxDiskSize int) (*DiskStore, error) {
+func NewDiskStore(maxFileSize, maxDiskSize int) (*DiskStore, error) {
 	err := os.MkdirAll(dataPath, os.ModePerm)
 	if err != nil {
 		return nil, err
@@ -55,7 +54,6 @@ func NewDiskStore(pools *models.Pools, maxFileSize, maxDiskSize int) (*DiskStore
 		addChan:     make(chan addMessage),
 		readChan:    make(chan readMessage),
 		stopChan:    make(chan struct{}),
-		pools:       pools,
 		maxFileSize: int64(maxFileSize),
 		maxDiskSize: int64(maxDiskSize),
 	}

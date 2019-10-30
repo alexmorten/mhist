@@ -6,14 +6,11 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-
-	"github.com/alexmorten/mhist/models"
 )
 
 //Server is the handler for requests
 type Server struct {
 	store       *Store
-	pools       *models.Pools
 	grpcHandler *GrpcHandler
 	waitGroup   *sync.WaitGroup
 }
@@ -27,8 +24,7 @@ type ServerConfig struct {
 
 //NewServer returns a new Server
 func NewServer(config ServerConfig) *Server {
-	pools := models.NewPools()
-	diskStore, err := NewDiskStore(pools, config.MemorySize, config.DiskSize)
+	diskStore, err := NewDiskStore(config.MemorySize, config.DiskSize)
 	if err != nil {
 		panic(err)
 	}
@@ -37,7 +33,6 @@ func NewServer(config ServerConfig) *Server {
 
 	server := &Server{
 		store:     store,
-		pools:     pools,
 		waitGroup: &sync.WaitGroup{},
 	}
 
