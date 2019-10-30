@@ -99,7 +99,7 @@ func (h *HTTPHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		renderError(err, w, http.StatusBadRequest)
 		return
 	}
-	h.Server.HandleNewMessage(byteSlice, false, func(err error, status int) {
+	h.Server.HandleNewMessage(byteSlice, func(err error, status int) {
 		renderError(err, w, status)
 	})
 }
