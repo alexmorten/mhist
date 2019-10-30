@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"time"
+
 	"github.com/alexmorten/mhist/models"
 )
 
@@ -25,22 +27,34 @@ func MeasurementFromModel(m models.Measurement) *Measurement {
 	return pM
 }
 
-// ToModel converts the proto measurement to the internal measurement representation
-// returns nil if the prot version doesn't contain enough information
-func (m *Measurement) ToModel() models.Measurement {
+// ToModelWithDefinedTs converts the proto measurement to the internal measurement representation
+// returns nil if the protp version doesn't contain enough information
+// if the ts is not provided the current time is used
+func (m *Measurement) ToModelWithDefinedTs() models.Measurement {
 	var modelMeasurent models.Measurement
 	if c := m.GetCategorical(); c != nil {
-		modelMeasurent = &models.Categorical{
+		categorical := &models.Categorical{
 			Ts:    c.Ts,
 			Value: c.Value,
 		}
+		if categorical.Ts == 0 {
+			categorical.Ts = time.Now().UnixNano()
+		}
+
+		modelMeasurent = categorical
 	}
 
 	if n := m.GetNumerical(); n != nil {
-		modelMeasurent = &models.Numerical{
+		numerical := &models.Numerical{
 			Ts:    n.Ts,
 			Value: n.Value,
 		}
+
+		if numerical.Ts == 0 {
+			numerical.Ts = time.Now().UnixNano()
+		}
+
+		modelMeasurent = numerical
 	}
 
 	return modelMeasurent

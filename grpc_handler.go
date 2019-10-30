@@ -98,9 +98,11 @@ func (h *GrpcHandler) StoreStream(stream proto.Mhist_StoreStreamServer) error {
 
 // Retrieve the requested measurements
 func (h *GrpcHandler) Retrieve(_ context.Context, request *proto.RetrieveRequest) (*proto.RetrieveResponse, error) {
-	filterDefinition := models.FilterDefinition{
-		Names:       request.Filter.Names,
-		Granularity: time.Duration(request.Filter.GranularityNanos),
+	filterDefinition := models.FilterDefinition{}
+
+	if request.Filter != nil {
+		filterDefinition.Names = request.Filter.Names
+		filterDefinition.Granularity = time.Duration(request.Filter.GranularityNanos)
 	}
 
 	endTs := request.End
@@ -147,7 +149,7 @@ func (h *GrpcHandler) Subscribe(protoFilter *proto.Filter, stream proto.Mhist_Su
 }
 
 func (h *GrpcHandler) handleNewMessage(message *proto.MeasurementMessage) error {
-	m := message.Measurement.ToModel()
+	m := message.Measurement.ToModelWithDefinedTs()
 
 	if m == nil {
 		return ErrMeasurementMissingType
