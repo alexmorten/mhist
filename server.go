@@ -21,6 +21,7 @@ type Server struct {
 	pools       *models.Pools
 	httpHandler *HTTPHandler
 	tcpHandler  *tcp.Handler
+	grpcHandler *GrpcHandler
 	waitGroup   *sync.WaitGroup
 }
 
@@ -28,6 +29,7 @@ type Server struct {
 type ServerConfig struct {
 	HTTPPort   int
 	TCPPort    int
+	GrpcPort   int
 	MemorySize int
 	DiskSize   int
 }
@@ -59,6 +61,14 @@ func NewServer(config ServerConfig) *Server {
 	httpHandler.Init()
 
 	server.httpHandler = httpHandler
+
+	grpcHandler := &GrpcHandler{
+		Server: server,
+		Port:   config.GrpcPort,
+	}
+	store.AddSubscriber(grpcHandler)
+	server.grpcHandler = grpcHandler
+
 	return server
 }
 
@@ -73,13 +83,17 @@ func (s *Server) Run() {
 		s.Shutdown()
 	}()
 
-	s.waitGroup.Add(2)
+	s.waitGroup.Add(3)
 	go func() {
 		s.httpHandler.Run()
 		s.waitGroup.Done()
 	}()
 	go func() {
 		s.tcpHandler.Run()
+		s.waitGroup.Done()
+	}()
+	go func() {
+		s.grpcHandler.Run()
 		s.waitGroup.Done()
 	}()
 	s.waitGroup.Wait()
@@ -89,6 +103,8 @@ func (s *Server) Run() {
 func (s *Server) Shutdown() {
 	s.httpHandler.Shutdown()
 	s.tcpHandler.Shutdown()
+	s.grpcHandler.Shutdown()
+
 	s.store.Shutdown()
 }
 

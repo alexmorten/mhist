@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package proto;
+
+message Numerical {
+  int64 ts = 1;
+  double value = 2;
+}
+
+message Categorical {
+  int64 ts = 1;
+  string value = 2;
+}
+
+message Measurement {
+  oneof type {
+    Numerical numerical = 1;
+    Categorical categorical = 2;
+  }
+}
+
+message MeasurementMessage {
+  string name = 1;
+  Measurement measurement = 2;
+}
+
+message RetrieveRequest {
+  int64 start = 1;
+  int64 end = 2;
+  Filter filter = 3;
+}
+
+message MeasurementList {
+  repeated Measurement measurements = 1;
+}
+
+message RetrieveResponse {
+  map<string, MeasurementList> histories = 1;
+}
+
+message Filter {
+  int64 granularity_nanos = 1;
+  repeated string names = 2;
+}
+
+message Nothing {}
+
+service Mhist {
+  rpc Store(MeasurementMessage) returns (Nothing);
+  rpc StoreStream(stream MeasurementMessage) returns (Nothing);
+
+  rpc Retrieve(RetrieveRequest) returns (RetrieveResponse);
+  rpc Subscribe(Filter) returns(stream MeasurementMessage);
+}

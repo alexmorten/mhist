@@ -6,3 +6,6 @@ run:
 
 image-build:
 	docker build -t mhist .
+
+gen:
+	protoc --go_out=plugins=grpc:. proto/rpc.proto
