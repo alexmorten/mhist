@@ -1,13 +1,14 @@
 # mhist
+
 ## simple measurement history logger
+
 This is a very simple measurement database, that receives measurements (consisting of name, value and optionally a timestamp) through tcp or http. If you don't send a timestamp with the measurement, the current time is used (there are rarely reasons to send a different timestamp).
 Measurements are stored on disk
 
 For realtime updates you can subscribe to mhist with tcp and for historical access you can retrieve measurements with http.
 
-Mhist also supports barebones data-replication to other instances of itself (the adresses of which have to be known beforehand).
-
 ### assumptions
+
 - measurements are received by mhist in the order they are generated
 - there are only two types of measurements: `numerical`, sent to mhist as numbers, and `categorical`, sent to mhist as strings
 - measurement types don't change for a certain measurement name.
@@ -18,7 +19,7 @@ Mhist also supports barebones data-replication to other instances of itself (the
 
 This uses [go mod for dependency management](https://github.com/golang/go/wiki/Modules)
 
-To see how to change the default configuration, run ` go run main/main.go -h`
+To see how to change the default configuration, run `go run main/main.go -h`
 
 ## endpoints
 

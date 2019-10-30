@@ -6,12 +6,11 @@ import (
 
 //Store is responsible for handling Storage of different kinds of measurements
 type Store struct {
-	subscribers  SubscriberSlice
-	replications SubscriberSlice
-	diskStore    *DiskStore
+	subscribers SubscriberSlice
+	diskStore   *DiskStore
 }
 
-//NewStore from diskstore, that handles subscribers and replications
+//NewStore from diskstore, that handles subscribers
 func NewStore(diskStore *DiskStore) *Store {
 	store := &Store{
 		diskStore: diskStore,
@@ -25,16 +24,8 @@ func (s *Store) AddSubscriber(sub Subscriber) {
 	s.subscribers = append(s.subscribers, sub)
 }
 
-//AddReplication to Store
-func (s *Store) AddReplication(rep Subscriber) {
-	s.replications = append(s.replications, rep)
-}
-
 //Add named measurement
-func (s *Store) Add(name string, m models.Measurement, isReplication bool) {
-	if !isReplication {
-		s.replications.NotifyAll(name, m)
-	}
+func (s *Store) Add(name string, m models.Measurement) {
 	s.subscribers.NotifyAll(name, m)
 }
 

@@ -12,7 +12,7 @@ import (
 
 //MessageHandler handles everything for incoming messages
 type MessageHandler interface {
-	HandleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, _ int))
+	HandleNewMessage(byteSlice []byte, onError func(err error, _ int))
 }
 
 //Handler handles tcp connections
@@ -108,8 +108,8 @@ func (h *Handler) Shutdown() {
 
 }
 
-func (h *Handler) onNewMessage(byteSlice []byte, isReplication bool) {
-	h.messageHandler.HandleNewMessage(byteSlice, isReplication, func(err error, _ int) {
+func (h *Handler) onNewMessage(byteSlice []byte) {
+	h.messageHandler.HandleNewMessage(byteSlice, func(err error, _ int) {
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -137,7 +137,7 @@ func (h *Handler) handleNewConnection(conn net.Conn) {
 	}
 	if m.Publisher {
 		connectionWrapper.OnNewMessage(func(byteSlice []byte) {
-			h.onNewMessage(byteSlice, m.Replication)
+			h.onNewMessage(byteSlice)
 		})
 		connectionWrapper.OnConnectionClose(func() {
 			h.allConnections.RemoveConnection(connectionWrapper)

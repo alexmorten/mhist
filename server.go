@@ -26,11 +26,10 @@ type Server struct {
 
 //ServerConfig ...
 type ServerConfig struct {
-	HTTPPort             int
-	TCPPort              int
-	MemorySize           int
-	DiskSize             int
-	ReplicationAddresses []string
+	HTTPPort   int
+	TCPPort    int
+	MemorySize int
+	DiskSize   int
 }
 
 //NewServer returns a new Server
@@ -60,10 +59,6 @@ func NewServer(config ServerConfig) *Server {
 	httpHandler.Init()
 
 	server.httpHandler = httpHandler
-	for _, address := range config.ReplicationAddresses {
-		replication := tcp.NewReplication(address, pools)
-		store.AddReplication(replication)
-	}
 	return server
 }
 
@@ -98,7 +93,7 @@ func (s *Server) Shutdown() {
 }
 
 //HandleNewMessage coming from any source
-func (s *Server) HandleNewMessage(byteSlice []byte, isReplication bool, onError func(err error, status int)) {
+func (s *Server) HandleNewMessage(byteSlice []byte, onError func(err error, status int)) {
 	data := models.Message{}
 	err := json.Unmarshal(byteSlice, &data)
 	if err != nil {
@@ -115,7 +110,7 @@ func (s *Server) HandleNewMessage(byteSlice []byte, isReplication bool, onError 
 		onError(err, http.StatusBadRequest)
 		return
 	}
-	s.store.Add(data.Name, measurement, isReplication)
+	s.store.Add(data.Name, measurement)
 }
 
 func (s *Server) constructMeasurementFromMessage(message models.Message) (measurement models.Measurement, err error) {

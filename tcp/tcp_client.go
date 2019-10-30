@@ -30,13 +30,6 @@ func NewClient(address string) *Client {
 	}
 }
 
-//NewReplicatorClient sets the subscriptionMessage correctly for a replication connection
-func NewReplicatorClient(address string) *Client {
-	client := NewClient(address)
-	client.subscriptionMessage.Replication = true
-	return client
-}
-
 //Connect to described address
 func (c *Client) Connect() {
 	c.Lock()
