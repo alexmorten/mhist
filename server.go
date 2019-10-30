@@ -62,12 +62,9 @@ func NewServer(config ServerConfig) *Server {
 
 	server.httpHandler = httpHandler
 
-	grpcHandler := &GrpcHandler{
-		Server: server,
-		Port:   config.GrpcPort,
-	}
-	store.AddSubscriber(grpcHandler)
+	grpcHandler := NewGrpcHandler(server, config.GrpcPort)
 	server.grpcHandler = grpcHandler
+	store.AddSubscriber(grpcHandler)
 
 	return server
 }

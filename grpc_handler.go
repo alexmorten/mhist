@@ -19,21 +19,29 @@ var ErrMeasurementMissingType = errors.New("measurement is not categorical or nu
 
 // GrpcHandler handles the grpc endpoints for the MhistServer interface
 type GrpcHandler struct {
-	Server     *Server
-	Port       int
+	server     *Server
+	port       int
 	grpcServer *grpc.Server
 
 	subs *grpcSubscribers
 }
 
+// NewGrpcHandler returns a fully initialized GrpcHandler
+func NewGrpcHandler(server *Server, port int) *GrpcHandler {
+	return &GrpcHandler{
+		server: server,
+		port:   port,
+		subs:   newGrpcSubscribers(),
+	}
+}
+
 // Run listens on the given port and handles grpc calls
 func (h *GrpcHandler) Run() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", h.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", h.port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	h.grpcServer = grpc.NewServer()
-	h.subs = newGrpcSubscribers()
 
 	proto.RegisterMhistServer(h.grpcServer, h)
 
@@ -104,7 +112,7 @@ func (h *GrpcHandler) Retrieve(_ context.Context, request *proto.RetrieveRequest
 	if startTs == 0 {
 		startTs = endTs - (1 * time.Hour).Nanoseconds()
 	}
-	responseMap := h.Server.store.GetMeasurementsInTimeRange(startTs, endTs, filterDefinition)
+	responseMap := h.server.store.GetMeasurementsInTimeRange(startTs, endTs, filterDefinition)
 
 	return proto.RetrieveResponseFromMeasurementMap(responseMap), nil
 }
@@ -144,6 +152,6 @@ func (h *GrpcHandler) handleNewMessage(message *proto.MeasurementMessage) error 
 	if m == nil {
 		return ErrMeasurementMissingType
 	}
-	h.Server.store.Add(message.Name, m)
+	h.server.store.Add(message.Name, m)
 	return nil
 }
