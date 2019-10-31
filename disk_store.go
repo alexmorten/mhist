@@ -1,8 +1,8 @@
 package mhist
 
 import (
-	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,7 +20,6 @@ var dataPath = "data"
 type DiskStore struct {
 	block       Block
 	meta        *DiskMeta
-	pools       *models.Pools
 	addChan     chan addMessage
 	readChan    chan readMessage
 	stopChan    chan struct{}
@@ -43,7 +42,7 @@ type readMessage struct {
 }
 
 //NewDiskStore initializes the DiskBlockRoutine
-func NewDiskStore(pools *models.Pools, maxFileSize, maxDiskSize int) (*DiskStore, error) {
+func NewDiskStore(maxFileSize, maxDiskSize int) (*DiskStore, error) {
 	err := os.MkdirAll(dataPath, os.ModePerm)
 	if err != nil {
 		return nil, err
@@ -55,7 +54,6 @@ func NewDiskStore(pools *models.Pools, maxFileSize, maxDiskSize int) (*DiskStore
 		addChan:     make(chan addMessage),
 		readChan:    make(chan readMessage),
 		stopChan:    make(chan struct{}),
-		pools:       pools,
 		maxFileSize: int64(maxFileSize),
 		maxDiskSize: int64(maxDiskSize),
 	}
@@ -140,7 +138,7 @@ func (s *DiskStore) commit() {
 
 	fileList, err := GetSortedFileList()
 	if err != nil {
-		fmt.Printf("couldn't get file List: %v", err)
+		log.Printf("couldn't get file List: %v", err)
 		return
 	}
 	defer func() { s.block = s.block[:0] }()
@@ -174,14 +172,14 @@ func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterD
 	result := readResult{}
 	files, err := GetFilesInTimeRange(start, end)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return readResult{}
 	}
 	filter := models.NewFilterCollection(filterDefinition)
 	for _, file := range files {
 		byteSlice, err := ioutil.ReadFile(filepath.Join(dataPath, file.name))
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			continue
 		}
 		block := BlockFromByteSlice(byteSlice)
