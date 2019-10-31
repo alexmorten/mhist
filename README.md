@@ -5,12 +5,12 @@
 This is a very simple measurement database, that receives measurements (consisting of name, value and optionally a timestamp) through tcp or http. If you don't send a timestamp with the measurement, the current time is used (there are rarely reasons to send a different timestamp).
 Measurements are stored on disk
 
-For realtime updates you can subscribe to mhist with tcp and for historical access you can retrieve measurements with http.
+For realtime updates you can subscribe to mhist.
 
 ### assumptions
 
 - measurements are received by mhist in the order they are generated
-- there are only two types of measurements: `numerical`, sent to mhist as numbers, and `categorical`, sent to mhist as strings
+- there are only two types of measurements: `numerical` and `categorical`
 - measurement types don't change for a certain measurement name.
 - it is known in advance how much memory and diskspace can be used by mhist.
 - when retrieving measurements you want to retrieve measurements of all names more often than just certain names.
@@ -23,16 +23,10 @@ To see how to change the default configuration, run `go run main/main.go -h`
 
 ## endpoints
 
-- `/`
-  - `POST` send measurement to mhist as json with `name: string` and `value: number|string`.
-  - `GET` get recorded measurements with the following optional query params:
-    - `start` & `end` points in time as unix-timestamps in nanoseconds, defining what timestamp of measurements to filter for.
-    - `granularity` minimum [duration](https://golang.org/pkg/time/#ParseDuration) between measurements (i.e. with a granularity of `1s` all measurements returned will have at least 1 second between them)
-    - `names` comma separated list of names of measurements. Measurements that are not in the list will not be returned
-- `/meta` get a list of stored measurement names and their types.
+see the [proto definition](proto/rpc.proto)
 
 ### todos
 
-- [X] refactor package layout. Types used all over the place should be in a package like `models` instead of being defined in the `mhist` package.
-- [ ] historical access should be also possible over tcp. For example streaming all measurements starting from a certain timestamp. This would also enable:
-- [ ] starting a new mhist instance that grabs all data that was already received by another instance and also gets all replicated data from that point forward.
+- [ ] add tests for subscription logic
+- [ ] add raw measurement type, where the value is just bytes (value is written to value log file, position in file and length written to current "index" file)
+- [ ] - add in memory file index, minimising the filesystem list calls
