@@ -10,14 +10,16 @@ import (
 
 //Server is the handler for requests
 type Server struct {
-	store       *Store
-	grpcHandler *GrpcHandler
-	waitGroup   *sync.WaitGroup
+	store        *Store
+	grpcHandler  *GrpcHandler
+	debugHandler *DebugHandler
+	waitGroup    *sync.WaitGroup
 }
 
 //ServerConfig ...
 type ServerConfig struct {
 	GrpcPort   int
+	DebugPort  int
 	MemorySize int
 	DiskSize   int
 }
@@ -40,6 +42,10 @@ func NewServer(config ServerConfig) *Server {
 	server.grpcHandler = grpcHandler
 	store.AddSubscriber(grpcHandler)
 
+	server.debugHandler = &DebugHandler{
+		Port: config.DebugPort,
+	}
+
 	return server
 }
 
@@ -54,12 +60,24 @@ func (s *Server) Run() {
 		s.Shutdown()
 	}()
 
-	s.grpcHandler.Run()
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		s.grpcHandler.Run()
+		wg.Done()
+	}()
+	go func() {
+		s.debugHandler.Run()
+		wg.Done()
+	}()
+
+	wg.Wait()
 }
 
 //Shutdown all goroutines and connections
 func (s *Server) Shutdown() {
 	s.grpcHandler.Shutdown()
+	s.debugHandler.Shutdown()
 
 	s.store.Shutdown()
 }
