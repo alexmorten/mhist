@@ -26,7 +26,7 @@ func Test_Server(t *testing.T) {
 			numericalValues := []float64{60, 10, 40, 20, 50, 42}
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
 			serverTestSetup(t, server, numericalValues, categoricalValues, func(_ int) int64 { return 0 })
-
+			server.store.diskStore.commit()
 			request := &proto.RetrieveRequest{}
 			response, err := server.grpcHandler.Retrieve(context.Background(), request)
 			require.NoError(t, err)

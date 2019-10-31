@@ -12,7 +12,7 @@ var metaFilePath = "meta.gob"
 
 //DiskMeta holds the meta info for (Un)Marshalization
 type DiskMeta struct {
-	//sync maps would be better here, but are not easy to marshalize
+	//sync maps would be better here, but are not easy to marshal
 	NameToID           map[string]int64
 	IDToName           map[int64]string
 	IDToType           map[int64]models.MeasurementType

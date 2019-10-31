@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 //GetSortedFileList gets the FileInfo list for data files (not the meta file)
@@ -20,6 +21,10 @@ func GetSortedFileList() (FileInfoSlice, error) {
 	}
 
 	for _, f := range files {
+		if strings.HasSuffix(f.Name(), "_values") {
+			continue
+		}
+
 		info, err := timestampsFromFileName(f.Name())
 		if err != nil {
 			continue
@@ -54,25 +59,41 @@ type FileInfo struct {
 	latestTs int64
 }
 
+func (i *FileInfo) indexName() string {
+	return i.name
+}
+
+func (i *FileInfo) valueLogName() string {
+	return fmt.Sprintf("%s_values", i.name)
+}
+
 //FileInfoSlice ...
 type FileInfoSlice []*FileInfo
 
 //WriteBlockToFile ...
-func WriteBlockToFile(b Block) error {
-	return ioutil.WriteFile(filepath.Join(dataPath, fileNameFromTs(b.OldestTs(), b.LatestTs())), b.UnderlyingByteSlice(), os.ModePerm)
+func WriteBlockToFile(b Block) (path string, err error) {
+	path = pathTo(fileNameFromTs(b.OldestTs(), b.LatestTs()))
+	err = ioutil.WriteFile(path, b.UnderlyingByteSlice(), os.ModePerm)
+	return
 }
 
 //AppendBlockToFile ...
-func AppendBlockToFile(info *FileInfo, block Block) error {
-	f, err := os.OpenFile(filepath.Join(dataPath, info.name), os.O_APPEND|os.O_WRONLY, 0600)
+func AppendBlockToFile(info *FileInfo, block Block) (path string, err error) {
+	f, err := os.OpenFile(pathTo(info.name), os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-		return err
+		return "", err
 	}
 	_, err = f.Write(block.UnderlyingByteSlice())
 	if err != nil {
-		return err
+		return "", err
 	}
-	return os.Rename(filepath.Join(dataPath, info.name), filepath.Join(dataPath, fileNameFromTs(info.oldestTs, block.LatestTs())))
+	path = pathTo(fileNameFromTs(info.oldestTs, block.LatestTs()))
+	err = os.Rename(pathTo(info.name), path)
+	return
+}
+
+func pathTo(filename string) string {
+	return filepath.Join(dataPath, filename)
 }
 
 func fileNameFromTs(oldestTs, latestTs int64) string {

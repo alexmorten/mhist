@@ -26,8 +26,8 @@ func (b Block) LatestTs() int64 {
 }
 
 //Size of block
-func (b Block) Size() int64 {
-	return int64(len(b)) * serializedMeasurementSize
+func (b Block) Size() int {
+	return len(b) * serializedMeasurementSize
 }
 
 //UnderlyingByteSlice returns the memory representation of the Block

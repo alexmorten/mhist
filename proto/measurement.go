@@ -57,5 +57,18 @@ func (m *Measurement) ToModelWithDefinedTs() models.Measurement {
 		modelMeasurent = numerical
 	}
 
+	if r := m.GetRaw(); r != nil {
+		raw := &models.Raw{
+			Ts:    r.Ts,
+			Value: r.Value,
+		}
+
+		if raw.Ts == 0 {
+			raw.Ts = time.Now().UnixNano()
+		}
+
+		modelMeasurent = raw
+	}
+
 	return modelMeasurent
 }

@@ -12,24 +12,24 @@ import (
 )
 
 const maxBuffer = 12 * 1024
-const timeBetweenWrites = 5 * time.Second
+const timeBetweenWrites = 20 * time.Second
 
 var dataPath = "data"
 
 //DiskStore handles buffered writes to and reads from Disk
 type DiskStore struct {
-	block       Block
-	meta        *DiskMeta
-	addChan     chan addMessage
-	readChan    chan readMessage
-	stopChan    chan struct{}
-	maxFileSize int64
-	maxDiskSize int64
+	*DiskWriter
+
+	meta     *DiskMeta
+	addChan  chan addMessage
+	readChan chan readMessage
+	stopChan chan struct{}
 }
 
 type addMessage struct {
 	name        string
 	measurement SerializedMeasurement
+	rawValue    []byte
 }
 
 type readResult map[string][]models.Measurement
@@ -48,14 +48,17 @@ func NewDiskStore(maxFileSize, maxDiskSize int) (*DiskStore, error) {
 		return nil, err
 	}
 
+	writer, err := NewDiskWriter(maxFileSize, maxDiskSize)
+	if err != nil {
+		return nil, err
+	}
+
 	store := &DiskStore{
-		meta:        InitMetaFromDisk(),
-		block:       Block{},
-		addChan:     make(chan addMessage),
-		readChan:    make(chan readMessage),
-		stopChan:    make(chan struct{}),
-		maxFileSize: int64(maxFileSize),
-		maxDiskSize: int64(maxDiskSize),
+		meta:       InitMetaFromDisk(),
+		DiskWriter: writer,
+		addChan:    make(chan addMessage),
+		readChan:   make(chan readMessage),
+		stopChan:   make(chan struct{}),
 	}
 
 	go store.Listen()
@@ -72,18 +75,26 @@ func (s *DiskStore) Add(name string, measurement models.Measurement) {
 	id, err := s.meta.GetOrCreateID(name, measurement.Type())
 	if err != nil {
 		//measurement is probably of different type than it used to be, just ignore for now
+		// should probably trigger some kind of cleanup
 		return
 	}
+
 	var valueOrValueID float64
+	var rawValue []byte
+
 	switch measurement.(type) {
 	case *models.Numerical:
-		valueOrValueID = measurement.ValueInterface().(float64)
+		valueOrValueID = measurement.(*models.Numerical).Value
 	case *models.Categorical:
-		valueOrValueID = s.meta.GetValueIDForCategoricalValue(id, measurement.ValueString())
+		valueOrValueID = s.meta.GetValueIDForCategoricalValue(id, measurement.(*models.Categorical).Value)
+	case *models.Raw:
+		rawValue = measurement.(*models.Raw).Value
 	}
+
 	s.addChan <- addMessage{
 		name:        name,
-		measurement: SerializedMeasurement{ID: id, Numerical: models.Numerical{Ts: measurement.Timestamp(), Value: valueOrValueID}},
+		measurement: SerializedMeasurement{ID: id, Ts: measurement.Timestamp(), Value: valueOrValueID},
+		rawValue:    rawValue,
 	}
 }
 
@@ -125,7 +136,7 @@ loop:
 		case message := <-s.readChan:
 			message.resultChan <- s.handleRead(message.fromTs, message.toTs, message.filterDefinition)
 		case message := <-s.addChan:
-			s.handleAdd(message.name, message.measurement)
+			s.handleAdd(message)
 		}
 	}
 }
@@ -159,13 +170,12 @@ func (s *DiskStore) commit() {
 	}
 }
 
-func (s *DiskStore) handleAdd(name string, m SerializedMeasurement) {
-	s.block = append(s.block, m)
+func (s *DiskStore) handleAdd(m addMessage) {
+	s.block = append(s.block, m.measurement)
 
 	if s.block.Size() > maxBuffer {
 		s.commit()
 	}
-
 }
 
 func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterDefinition) readResult {
@@ -215,8 +225,7 @@ func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, fil
 		var measurement models.Measurement
 		switch measurementType {
 		case models.MeasurementNumerical:
-			measurementCopy := serializedMeasurement.Numerical
-			measurement = &measurementCopy
+			measurement = &models.Numerical{Ts: serializedMeasurement.Ts, Value: serializedMeasurement.Value}
 
 		case models.MeasurementCategorical:
 			measurement = &models.Categorical{
@@ -232,8 +241,10 @@ func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, fil
 
 //SerializedMeasurement is a numerical measureent extended by ID, can be dumped to disk directly
 type SerializedMeasurement struct {
-	ID int64
-	models.Numerical
+	ID    int64
+	Ts    int64
+	Value float64
+	Size  int64
 }
 
-var serializedMeasurementSize = int64(unsafe.Sizeof(SerializedMeasurement{}))
+var serializedMeasurementSize = int(unsafe.Sizeof(SerializedMeasurement{}))
