@@ -1,6 +1,7 @@
 package mhist
 
 import (
+	"log"
 	"os"
 )
 
@@ -89,9 +90,13 @@ func (w *DiskWriter) commit() {
 	if fileList.TotalSize() > w.maxDiskSize {
 		oldestFile := fileList[0]
 		err = os.Remove(oldestFile.indexName())
-		mustNotBeError(err)
+		if err != nil {
+			log.Println(err)
+		}
 		err = os.Remove(oldestFile.valueLogName())
-		mustNotBeError(err)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
