@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 	"unsafe"
 
@@ -141,72 +140,36 @@ loop:
 	}
 }
 
-//Commit the buffered writes to actual disk
-func (s *DiskStore) commit() {
-	if s.block.Size() == 0 {
-		return
-	}
-
-	fileList, err := GetSortedFileList()
-	if err != nil {
-		log.Printf("couldn't get file List: %v", err)
-		return
-	}
-	defer func() { s.block = s.block[:0] }()
-	if len(fileList) == 0 {
-		WriteBlockToFile(s.block)
-		return
-	}
-	latestFile := fileList[len(fileList)-1]
-	if latestFile.size < s.maxFileSize {
-		AppendBlockToFile(latestFile, s.block)
-		return
-	}
-	WriteBlockToFile(s.block)
-
-	if fileList.TotalSize() > s.maxDiskSize {
-		oldestFile := fileList[0]
-		os.Remove(filepath.Join(dataPath, oldestFile.name))
-	}
-}
-
-func (s *DiskStore) handleAdd(m addMessage) {
-	s.block = append(s.block, m.measurement)
-
-	if s.block.Size() > maxBuffer {
-		s.commit()
-	}
-}
-
 func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterDefinition) readResult {
+	s.DiskWriter.indexWriter.Sync()
+	s.DiskWriter.valueLogWriter.Sync()
+
 	result := readResult{}
-	files, err := GetFilesInTimeRange(start, end)
+	files, err := s.DiskWriter.getFilesInTimeRange(start, end)
 	if err != nil {
 		log.Println(err)
 		return readResult{}
 	}
 	filter := models.NewFilterCollection(filterDefinition)
 	for _, file := range files {
-		byteSlice, err := ioutil.ReadFile(filepath.Join(dataPath, file.name))
+		byteSlice, err := ioutil.ReadFile(file.name)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 		block := BlockFromByteSlice(byteSlice)
-
-		s.appendPassingMeasurements(block, start, end, filter, result)
-
-	}
-
-	// the range we read includes the currently buffered block
-	if len(files) == 0 || end > files[len(files)-1].latestTs {
-		s.appendPassingMeasurements(s.block, start, end, filter, result)
+		logReader, err := os.Open(file.valueLogName())
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		s.appendPassingMeasurements(block, logReader, start, end, filter, result)
 	}
 
 	return result
 }
 
-func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, filter *models.FilterCollection, result readResult) {
+func (s *DiskStore) appendPassingMeasurements(block Block, valueFile *os.File, start, end int64, filter *models.FilterCollection, result readResult) {
 	for _, serializedMeasurement := range block {
 		name := s.meta.GetNameForID(serializedMeasurement.ID)
 		if name == "" {
@@ -231,6 +194,23 @@ func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, fil
 			measurement = &models.Categorical{
 				Ts:    serializedMeasurement.Ts,
 				Value: s.meta.CategoricalMapping.GetOrCreateValueIDMap(serializedMeasurement.ID).ValueIDToValue[serializedMeasurement.Value],
+			}
+		case models.MeasurementRaw:
+			value := make([]byte, serializedMeasurement.Size)
+			pos := int64(serializedMeasurement.Value)
+			n, err := valueFile.ReadAt(value, pos)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			if int64(n) != serializedMeasurement.Size {
+				log.Println("didn't read the expected amount", serializedMeasurement.Size, "but read", n, "instead")
+				continue
+			}
+
+			measurement = &models.Raw{
+				Ts:    serializedMeasurement.Ts,
+				Value: value,
 			}
 		}
 		if filter.Passes(name, measurement) {

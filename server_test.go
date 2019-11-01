@@ -30,9 +30,11 @@ func Test_Server(t *testing.T) {
 			request := &proto.RetrieveRequest{}
 			response, err := server.grpcHandler.Retrieve(context.Background(), request)
 			require.NoError(t, err)
-
+			require.NotNil(t, response)
 			numericalResponseValues := []float64{}
-			for _, measurement := range response.Histories["some_name"].Measurements {
+			hist := response.Histories["some_name"]
+			require.NotNil(t, hist)
+			for _, measurement := range hist.Measurements {
 				numericalResponseValues = append(numericalResponseValues, measurement.Type.(*proto.Measurement_Numerical).Numerical.Value)
 			}
 
@@ -69,7 +71,10 @@ func Test_ServerFilter(t *testing.T) {
 			require.NoError(t, err)
 
 			numericalResponseValues := []float64{}
-			for _, measurement := range response.Histories["some_name"].Measurements {
+			hist := response.Histories["some_name"]
+			require.NotNil(t, hist)
+
+			for _, measurement := range hist.Measurements {
 				numericalResponseValues = append(numericalResponseValues, measurement.Type.(*proto.Measurement_Numerical).Numerical.Value)
 			}
 

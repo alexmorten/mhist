@@ -36,21 +36,6 @@ func GetSortedFileList() (FileInfoSlice, error) {
 	return infoList, nil
 }
 
-//GetFilesInTimeRange gets the FileInfo list for data files in the time range
-func GetFilesInTimeRange(start, end int64) (FileInfoSlice, error) {
-	allFiles, err := GetSortedFileList()
-	if err != nil {
-		return nil, err
-	}
-	filesInTimeRange := FileInfoSlice{}
-	for _, fileInfo := range allFiles {
-		if fileInfo.isInTimeRange(start, end) {
-			filesInTimeRange = append(filesInTimeRange, fileInfo)
-		}
-	}
-	return filesInTimeRange, nil
-}
-
 //FileInfo descibes file info
 type FileInfo struct {
 	name     string
@@ -69,28 +54,6 @@ func (i *FileInfo) valueLogName() string {
 
 //FileInfoSlice ...
 type FileInfoSlice []*FileInfo
-
-//WriteBlockToFile ...
-func WriteBlockToFile(b Block) (path string, err error) {
-	path = pathTo(fileNameFromTs(b.OldestTs(), b.LatestTs()))
-	err = ioutil.WriteFile(path, b.UnderlyingByteSlice(), os.ModePerm)
-	return
-}
-
-//AppendBlockToFile ...
-func AppendBlockToFile(info *FileInfo, block Block) (path string, err error) {
-	f, err := os.OpenFile(pathTo(info.name), os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return "", err
-	}
-	_, err = f.Write(block.UnderlyingByteSlice())
-	if err != nil {
-		return "", err
-	}
-	path = pathTo(fileNameFromTs(info.oldestTs, block.LatestTs()))
-	err = os.Rename(pathTo(info.name), path)
-	return
-}
 
 func pathTo(filename string) string {
 	return filepath.Join(dataPath, filename)

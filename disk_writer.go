@@ -7,9 +7,12 @@ import (
 
 // DiskWriter handles writing the measurement index and value log
 type DiskWriter struct {
-	block          Block
-	valueLogWriter *os.File
-	currentPos     int64
+	indexWriter                 *os.File
+	valueLogWriter              *os.File
+	firstWrittenTs              int64
+	lastWrittenTs               int64
+	bytesWrittenSinceLastCommit int64
+	currentPos                  int64
 
 	maxFileSize int64
 	maxDiskSize int64
@@ -18,7 +21,6 @@ type DiskWriter struct {
 // NewDiskWriter returns a fully initialized DiskWriter
 func NewDiskWriter(maxFileSize, maxDiskSize int) (*DiskWriter, error) {
 	writer := &DiskWriter{
-		block:       Block{},
 		maxFileSize: int64(maxFileSize),
 		maxDiskSize: int64(maxDiskSize),
 	}
@@ -29,123 +31,145 @@ func NewDiskWriter(maxFileSize, maxDiskSize int) (*DiskWriter, error) {
 	}
 
 	if len(fileList) == 0 {
-		logWriter, err := os.Create(pathTo("current_value_log"))
+		err := writer.createWriters(pathTo("current"))
 		if err != nil {
 			return nil, err
 		}
-		writer.valueLogWriter = logWriter
 		return writer, nil
 	}
 
 	latestFile := fileList[len(fileList)-1]
 	if latestFile.size < writer.maxFileSize {
-		err := writer.setValueWriter(pathTo(latestFile.indexName()))
+		err := writer.createWriters(pathTo(latestFile.indexName()))
 		if err != nil {
 			return nil, err
 		}
 		return writer, nil
 	}
 
-	logWriter, err := os.Create(pathTo("current_value_log"))
+	err = writer.createWriters(pathTo("current"))
 	if err != nil {
 		return nil, err
 	}
-
-	writer.valueLogWriter = logWriter
 	return writer, nil
 }
 
 //Commit the buffered writes to actual disk
 func (w *DiskWriter) commit() {
-	if w.block.Size() == 0 {
+	if w.bytesWrittenSinceLastCommit == 0 {
 		return
 	}
-	err := w.valueLogWriter.Sync()
-	if err != nil {
-		panic(err)
-	}
 
-	fileList, err := GetSortedFileList()
-	if err != nil {
-		log.Printf("couldn't get file List: %v", err)
+	err := w.indexWriter.Sync()
+	mustNotBeError(err)
+	err = w.valueLogWriter.Sync()
+	mustNotBeError(err)
+
+	info, err := os.Stat(w.valueLogWriter.Name())
+	mustNotBeError(err)
+	if info.Size() < w.maxFileSize {
 		return
 	}
-	defer func() { w.block = w.block[:0] }()
-	if len(fileList) == 0 {
-		path, err := WriteBlockToFile(w.block)
-		if err != nil {
-			panic(err)
-		}
-		currentLogFilePath := w.valueLogWriter.Name()
-		w.valueLogWriter.Close()
 
-		os.Rename(currentLogFilePath, path)
-
-		err = w.setValueWriter(path)
-		if err != nil {
-			panic(err)
-		}
-
-		return
-	}
-	latestFile := fileList[len(fileList)-1]
-	if latestFile.size < w.maxFileSize {
-		_, err := AppendBlockToFile(latestFile, w.block)
-		if err != nil {
-			panic(err)
-		}
-		return
-	}
-	path, err := WriteBlockToFile(w.block)
-	if err != nil {
-		panic(err)
-	}
+	currentIndexPath := w.indexWriter.Name()
+	w.valueLogWriter.Close()
 	currentLogFilePath := w.valueLogWriter.Name()
 	w.valueLogWriter.Close()
 
-	os.Rename(currentLogFilePath, path)
+	newIndexPath := pathTo(fileNameFromTs(w.firstWrittenTs, w.lastWrittenTs))
+	os.Rename(currentIndexPath, newIndexPath)
+	os.Rename(currentLogFilePath, newIndexPath+"_values")
 
-	err = w.setValueWriter(path)
-	if err != nil {
-		panic(err)
-	}
+	err = w.createWriters(pathTo("current"))
+	mustNotBeError(err)
+
+	fileList, err := GetSortedFileList()
+	mustNotBeError(err)
 
 	if fileList.TotalSize() > w.maxDiskSize {
 		oldestFile := fileList[0]
-		os.Remove(pathTo(oldestFile.indexName()))
-		os.Remove(pathTo(oldestFile.valueLogName()))
+		err = os.Remove(oldestFile.indexName())
+		mustNotBeError(err)
+		err = os.Remove(oldestFile.valueLogName())
+		mustNotBeError(err)
 	}
 }
 
 func (w *DiskWriter) handleAdd(m addMessage) {
-	measuremnent := m.measurement
+	measurement := m.measurement
 	if len(m.rawValue) > 0 {
 		n, err := w.valueLogWriter.Write(m.rawValue)
 		if err != nil {
 			panic(err)
 		}
-		measuremnent.Value = float64(w.currentPos)
-		measuremnent.Size = int64(n)
-		w.currentPos += measuremnent.Size
+		measurement.Value = float64(w.currentPos)
+		measurement.Size = int64(n)
+		w.currentPos += measurement.Size
 	}
 
-	w.block = append(w.block, m.measurement)
+	w.lastWrittenTs = measurement.Ts
+	if w.firstWrittenTs == 0 {
+		w.firstWrittenTs = measurement.Ts
+	}
 
-	if w.block.Size() > maxBuffer {
+	b := Block{measurement}.UnderlyingByteSlice()
+	n, err := w.indexWriter.Write(b)
+	if err != nil {
+		log.Println(err)
+	}
+	w.bytesWrittenSinceLastCommit += int64(n)
+	if w.bytesWrittenSinceLastCommit > maxBuffer {
 		w.commit()
 	}
 }
 
-func (w *DiskWriter) setValueWriter(path string) error {
-	f, err := os.OpenFile(path+"_values", os.O_APPEND|os.O_CREATE, os.ModePerm)
+func (w *DiskWriter) createWriters(path string) error {
+	valueF, err := os.OpenFile(path+"_values", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	pos, err := f.Seek(0, 2)
+	pos, err := valueF.Seek(0, 2)
 	if err != nil {
 		return err
 	}
-	w.valueLogWriter = f
+	w.valueLogWriter = valueF
 	w.currentPos = pos
+	w.firstWrittenTs = 0
+	w.lastWrittenTs = 0
+	indexF, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	w.indexWriter = indexF
 	return nil
+}
+
+//getFilesInTimeRange gets the FileInfo list for data files in the time range
+func (w *DiskWriter) getFilesInTimeRange(start, end int64) (FileInfoSlice, error) {
+	allFiles, err := GetSortedFileList()
+	if err != nil {
+		return nil, err
+	}
+
+	currentInfo := &FileInfo{
+		name:     w.indexWriter.Name(),
+		oldestTs: w.firstWrittenTs,
+		latestTs: w.lastWrittenTs,
+	}
+
+	allFiles = append(allFiles, currentInfo)
+
+	filesInTimeRange := FileInfoSlice{}
+	for _, fileInfo := range allFiles {
+		if fileInfo.isInTimeRange(start, end) {
+			filesInTimeRange = append(filesInTimeRange, fileInfo)
+		}
+	}
+	return filesInTimeRange, nil
+}
+
+func mustNotBeError(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
