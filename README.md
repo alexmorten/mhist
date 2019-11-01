@@ -28,5 +28,5 @@ see the [proto definition](proto/rpc.proto)
 ### todos
 
 - [ ] add tests for subscription logic
-- [ ] add raw measurement type, where the value is just bytes (value is written to value log file, position in file and length written to current "index" file)
-- [ ] - add in memory file index, minimising the filesystem list calls
+- [x] add raw measurement type, where the value is just bytes (value is written to value log file, position in file and length written to current "index" file)
+- [ ] add in memory file index, minimising the filesystem list calls
