@@ -10,7 +10,7 @@ import (
 	"github.com/alexmorten/mhist/models"
 )
 
-const maxBuffer = 12 * 1024
+const maxBuffer = 128 * 1024
 const timeBetweenWrites = 20 * time.Second
 
 var dataPath = "data"
@@ -153,16 +153,10 @@ func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterD
 	filter := models.NewFilterCollection(filterDefinition)
 	for _, file := range files {
 		byteSlice, err := ioutil.ReadFile(file.name)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+		mustNotBeError(err)
 		block := BlockFromByteSlice(byteSlice)
 		logReader, err := os.Open(file.valueLogName())
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+		mustNotBeError(err)
 		s.appendPassingMeasurements(block, logReader, start, end, filter, result)
 	}
 

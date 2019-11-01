@@ -29,6 +29,7 @@ func GetSortedFileList() (FileInfoSlice, error) {
 		if err != nil {
 			continue
 		}
+		info.name = pathTo(info.name)
 		info.size = f.Size()
 		infoList = append(infoList, info)
 	}

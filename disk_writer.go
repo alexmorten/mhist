@@ -1,7 +1,6 @@
 package mhist
 
 import (
-	"log"
 	"os"
 )
 
@@ -59,14 +58,15 @@ func (w *DiskWriter) commit() {
 	if w.bytesWrittenSinceLastCommit == 0 {
 		return
 	}
+	w.bytesWrittenSinceLastCommit = 0
 
 	err := w.indexWriter.Sync()
+	mustNotBeError(err)
+	info, err := os.Stat(w.valueLogWriter.Name())
 	mustNotBeError(err)
 	err = w.valueLogWriter.Sync()
 	mustNotBeError(err)
 
-	info, err := os.Stat(w.valueLogWriter.Name())
-	mustNotBeError(err)
 	if info.Size() < w.maxFileSize {
 		return
 	}
@@ -99,24 +99,22 @@ func (w *DiskWriter) handleAdd(m addMessage) {
 	measurement := m.measurement
 	if len(m.rawValue) > 0 {
 		n, err := w.valueLogWriter.Write(m.rawValue)
-		if err != nil {
-			panic(err)
-		}
+		mustNotBeError(err)
 		measurement.Value = float64(w.currentPos)
 		measurement.Size = int64(n)
 		w.currentPos += measurement.Size
 	}
-
-	w.lastWrittenTs = measurement.Ts
+	if w.lastWrittenTs < measurement.Ts {
+		w.lastWrittenTs = measurement.Ts
+	}
 	if w.firstWrittenTs == 0 {
 		w.firstWrittenTs = measurement.Ts
 	}
 
 	b := Block{measurement}.UnderlyingByteSlice()
 	n, err := w.indexWriter.Write(b)
-	if err != nil {
-		log.Println(err)
-	}
+	mustNotBeError(err)
+
 	w.bytesWrittenSinceLastCommit += int64(n)
 	if w.bytesWrittenSinceLastCommit > maxBuffer {
 		w.commit()
