@@ -60,9 +60,9 @@ func (w *DiskWriter) commit() {
 	}
 	w.bytesWrittenSinceLastCommit = 0
 
-	err := w.indexWriter.Sync()
+	info, err := os.Stat(w.indexWriter.Name())
 	mustNotBeError(err)
-	info, err := os.Stat(w.valueLogWriter.Name())
+	err = w.indexWriter.Sync()
 	mustNotBeError(err)
 	err = w.valueLogWriter.Sync()
 	mustNotBeError(err)
