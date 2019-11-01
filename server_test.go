@@ -2,6 +2,7 @@ package mhist
 
 import (
 	"context"
+	"log"
 	"os"
 	"testing"
 
@@ -19,13 +20,14 @@ func Test_Server(t *testing.T) {
 		os.RemoveAll(dataPath)
 		dataPath = formerDataPath
 	}()
-	server := NewServer(ServerConfig{MemorySize: 24 * 1024 * 1024, DiskSize: 24 * 1024 * 1024})
+	server := NewServer(ServerConfig{MemorySize: 2 * 1024, DiskSize: 24 * 1024 * 1024})
 
 	t.Run("GrpcHandler", func(t *testing.T) {
 		t.Run("Storing and Retrieving measurements without filters", func(t *testing.T) {
 			numericalValues := []float64{60, 10, 40, 20, 50, 42}
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
-			serverTestSetup(t, server, numericalValues, categoricalValues, func(_ int) int64 { return 0 })
+			rawValues := [][]byte{[]byte("some_raw_value idk"), []byte("some_raw_value i still dont know"), []byte("some"), []byte("thing")}
+			serverTestSetup(t, server, numericalValues, categoricalValues, rawValues, func(_ int) int64 { return 0 })
 			server.store.diskStore.commit()
 			request := &proto.RetrieveRequest{}
 			response, err := server.grpcHandler.Retrieve(context.Background(), request)
@@ -46,6 +48,13 @@ func Test_Server(t *testing.T) {
 			}
 
 			assert.ElementsMatch(t, categoricalResponseValues, categoricalValues)
+
+			rawResponseValues := [][]byte{}
+			for _, measurement := range response.Histories["some_even_different_name"].Measurements {
+				rawResponseValues = append(rawResponseValues, measurement.Type.(*proto.Measurement_Raw).Raw.Value)
+			}
+
+			assert.ElementsMatch(t, rawResponseValues, rawValues)
 		})
 	})
 }
@@ -63,7 +72,9 @@ func Test_ServerFilter(t *testing.T) {
 		t.Run("Storing and Retrieving measurements with filters", func(t *testing.T) {
 			numericalValues := []float64{60, 10, 40, 20, 50, 42}
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
-			serverTestSetup(t, server, numericalValues, categoricalValues, func(i int) int64 { return int64(i*1000 + 1000) })
+			rawValues := [][]byte{[]byte("some_raw_value idk"), []byte("some_raw_value i still dont know"), []byte("some"), []byte("thing")}
+
+			serverTestSetup(t, server, numericalValues, categoricalValues, rawValues, func(i int) int64 { return int64(i*1000 + 1000) })
 			request := &proto.RetrieveRequest{
 				Start: 2001,
 			}
@@ -71,10 +82,8 @@ func Test_ServerFilter(t *testing.T) {
 			require.NoError(t, err)
 
 			numericalResponseValues := []float64{}
-			hist := response.Histories["some_name"]
-			require.NotNil(t, hist)
 
-			for _, measurement := range hist.Measurements {
+			for _, measurement := range response.Histories["some_name"].Measurements {
 				numericalResponseValues = append(numericalResponseValues, measurement.Type.(*proto.Measurement_Numerical).Numerical.Value)
 			}
 
@@ -86,12 +95,52 @@ func Test_ServerFilter(t *testing.T) {
 			}
 
 			assert.ElementsMatch(t, categoricalResponseValues, categoricalValues[2:])
+
+			rawResponseValues := [][]byte{}
+
+			for _, measurement := range response.Histories["some_even_different_name"].Measurements {
+				rawResponseValues = append(rawResponseValues, measurement.Type.(*proto.Measurement_Raw).Raw.Value)
+			}
+
+			assert.ElementsMatch(t, rawResponseValues, rawValues[2:])
 		})
 	})
 }
 
-func serverTestSetup(t *testing.T, server *Server, numericalValues []float64, categoricalValues []string, tsForIndex func(i int) int64) {
+func Test_ServerFineWithMultipleCommits(t *testing.T) {
+	formerDataPath := dataPath
+	dataPath = "test_data"
+	defer func() {
+		os.RemoveAll(dataPath)
+		dataPath = formerDataPath
+	}()
+	server := NewServer(ServerConfig{MemorySize: 64 * 1024, DiskSize: 24 * 1024 * 1024})
 
+	t.Run("GrpcHandler", func(t *testing.T) {
+		t.Run("Storing and Retrieving measurements with filters", func(t *testing.T) {
+			numericalValues := []float64{60, 10, 40, 20, 50, 42}
+			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
+			rawValues := [][]byte{[]byte("some_raw_value idk"), []byte("some_raw_value i still dont know"), []byte("some"), []byte("thing")}
+
+			for i := 0; i < 10000; i++ {
+				serverTestSetup(t, server, numericalValues, categoricalValues, rawValues, func(i int) int64 { return 0 })
+			}
+			log.Println("reading")
+			request := &proto.RetrieveRequest{}
+			response, err := server.grpcHandler.Retrieve(context.Background(), request)
+			log.Println("reading done")
+			require.NoError(t, err)
+			require.NotNil(t, response.Histories["some_name"])
+			require.NotNil(t, response.Histories["some_other_name"])
+			require.NotNil(t, response.Histories["some_even_different_name"])
+			assert.Len(t, response.Histories["some_name"].Measurements, 60000)
+			assert.Len(t, response.Histories["some_other_name"].Measurements, 70000)
+			assert.Len(t, response.Histories["some_even_different_name"].Measurements, 40000)
+		})
+	})
+}
+
+func serverTestSetup(t *testing.T, server *Server, numericalValues []float64, categoricalValues []string, rawValues [][]byte, tsForIndex func(i int) int64) {
 	for i, value := range numericalValues {
 		message := &proto.MeasurementMessage{
 			Name:        "some_name",
@@ -99,6 +148,7 @@ func serverTestSetup(t *testing.T, server *Server, numericalValues []float64, ca
 		}
 		_, err := server.grpcHandler.Store(context.Background(), message)
 		assert.NoError(t, err)
+
 	}
 
 	for i, value := range categoricalValues {
@@ -108,5 +158,16 @@ func serverTestSetup(t *testing.T, server *Server, numericalValues []float64, ca
 		}
 		_, err := server.grpcHandler.Store(context.Background(), message)
 		assert.NoError(t, err)
+
+	}
+
+	for i, value := range rawValues {
+		message := &proto.MeasurementMessage{
+			Name:        "some_even_different_name",
+			Measurement: proto.MeasurementFromModel(&models.Raw{Ts: tsForIndex(i), Value: value}),
+		}
+		_, err := server.grpcHandler.Store(context.Background(), message)
+		assert.NoError(t, err)
+
 	}
 }
