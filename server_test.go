@@ -122,7 +122,7 @@ func Test_ServerFineWithMultipleCommits(t *testing.T) {
 			categoricalValues := []string{"a", "b", "a", "de", "c", "b", "a"}
 			rawValues := [][]byte{[]byte("some_raw_value idk"), []byte("some_raw_value i still dont know"), []byte("some"), []byte("thing")}
 
-			for i := 0; i < 100000; i++ {
+			for i := 0; i < 10000; i++ {
 				serverTestSetup(t, server, numericalValues, categoricalValues, rawValues, func(i int) int64 { return 0 })
 			}
 			log.Println("reading")
@@ -133,9 +133,9 @@ func Test_ServerFineWithMultipleCommits(t *testing.T) {
 			require.NotNil(t, response.Histories["some_name"])
 			require.NotNil(t, response.Histories["some_other_name"])
 			require.NotNil(t, response.Histories["some_even_different_name"])
-			assert.Len(t, response.Histories["some_name"].Measurements, 600000)
-			assert.Len(t, response.Histories["some_other_name"].Measurements, 700000)
-			assert.Len(t, response.Histories["some_even_different_name"].Measurements, 400000)
+			assert.Len(t, response.Histories["some_name"].Measurements, 60000)
+			assert.Len(t, response.Histories["some_other_name"].Measurements, 70000)
+			assert.Len(t, response.Histories["some_even_different_name"].Measurements, 40000)
 		})
 	})
 }
