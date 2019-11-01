@@ -10,17 +10,29 @@ import (
 func MeasurementFromModel(m models.Measurement) *Measurement {
 	pM := &Measurement{}
 
-	if c, ok := m.(*models.Categorical); ok {
+	switch m.(type) {
+	case *models.Categorical:
+		c := m.(*models.Categorical)
 		pM.Type = &Measurement_Categorical{Categorical: &Categorical{
 			Ts:    c.Ts,
 			Value: c.Value,
 		}}
-	} else if n, ok := m.(*models.Numerical); ok {
+		break
+	case *models.Numerical:
+		n := m.(*models.Numerical)
 		pM.Type = &Measurement_Numerical{Numerical: &Numerical{
 			Ts:    n.Ts,
 			Value: n.Value,
 		}}
-	} else {
+		break
+	case *models.Raw:
+		r := m.(*models.Raw)
+		pM.Type = &Measurement_Raw{Raw: &Raw{
+			Ts:    r.Ts,
+			Value: r.Value,
+		}}
+		break
+	default:
 		return nil
 	}
 
@@ -55,6 +67,19 @@ func (m *Measurement) ToModelWithDefinedTs() models.Measurement {
 		}
 
 		modelMeasurent = numerical
+	}
+
+	if r := m.GetRaw(); r != nil {
+		raw := &models.Raw{
+			Ts:    r.Ts,
+			Value: r.Value,
+		}
+
+		if raw.Ts == 0 {
+			raw.Ts = time.Now().UnixNano()
+		}
+
+		modelMeasurent = raw
 	}
 
 	return modelMeasurent

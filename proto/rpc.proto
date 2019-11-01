@@ -12,10 +12,16 @@ message Categorical {
   string value = 2;
 }
 
+message Raw {
+  int64 ts = 1;
+  bytes value = 2;
+}
+
 message Measurement {
   oneof type {
     Numerical numerical = 1;
     Categorical categorical = 2;
+    Raw raw = 3;
   }
 }
 

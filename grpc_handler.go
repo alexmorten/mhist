@@ -37,14 +37,15 @@ func NewGrpcHandler(server *Server, port int) *GrpcHandler {
 
 // Run listens on the given port and handles grpc calls
 func (h *GrpcHandler) Run() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", h.port))
+	lisAddr := fmt.Sprintf(":%v", h.port)
+	log.Println("grpc_handler running on ", lisAddr)
+	lis, err := net.Listen("tcp", lisAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	h.grpcServer = grpc.NewServer()
 
 	proto.RegisterMhistServer(h.grpcServer, h)
-
 	if err := h.grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
@@ -137,7 +138,7 @@ func (h *GrpcHandler) Subscribe(protoFilter *proto.Filter, stream proto.Mhist_Su
 		err := stream.SendMsg(message)
 		if err != nil {
 			log.Println(err)
-			log.Println("removing subscribtion")
+			log.Println("removing subscription")
 
 			h.subs.removeSubscriber(subscription)
 

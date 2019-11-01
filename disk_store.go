@@ -4,32 +4,31 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 	"unsafe"
 
 	"github.com/alexmorten/mhist/models"
 )
 
-const maxBuffer = 12 * 1024
-const timeBetweenWrites = 5 * time.Second
+const maxBuffer = 128 * 1024
+const timeBetweenWrites = 20 * time.Second
 
 var dataPath = "data"
 
 //DiskStore handles buffered writes to and reads from Disk
 type DiskStore struct {
-	block       Block
-	meta        *DiskMeta
-	addChan     chan addMessage
-	readChan    chan readMessage
-	stopChan    chan struct{}
-	maxFileSize int64
-	maxDiskSize int64
+	*DiskWriter
+
+	meta     *DiskMeta
+	addChan  chan addMessage
+	readChan chan readMessage
+	stopChan chan struct{}
 }
 
 type addMessage struct {
 	name        string
 	measurement SerializedMeasurement
+	rawValue    []byte
 }
 
 type readResult map[string][]models.Measurement
@@ -48,14 +47,17 @@ func NewDiskStore(maxFileSize, maxDiskSize int) (*DiskStore, error) {
 		return nil, err
 	}
 
+	writer, err := NewDiskWriter(maxFileSize, maxDiskSize)
+	if err != nil {
+		return nil, err
+	}
+
 	store := &DiskStore{
-		meta:        InitMetaFromDisk(),
-		block:       Block{},
-		addChan:     make(chan addMessage),
-		readChan:    make(chan readMessage),
-		stopChan:    make(chan struct{}),
-		maxFileSize: int64(maxFileSize),
-		maxDiskSize: int64(maxDiskSize),
+		meta:       InitMetaFromDisk(),
+		DiskWriter: writer,
+		addChan:    make(chan addMessage),
+		readChan:   make(chan readMessage),
+		stopChan:   make(chan struct{}),
 	}
 
 	go store.Listen()
@@ -72,18 +74,26 @@ func (s *DiskStore) Add(name string, measurement models.Measurement) {
 	id, err := s.meta.GetOrCreateID(name, measurement.Type())
 	if err != nil {
 		//measurement is probably of different type than it used to be, just ignore for now
+		// should probably trigger some kind of cleanup
 		return
 	}
+
 	var valueOrValueID float64
+	var rawValue []byte
+
 	switch measurement.(type) {
 	case *models.Numerical:
-		valueOrValueID = measurement.ValueInterface().(float64)
+		valueOrValueID = measurement.(*models.Numerical).Value
 	case *models.Categorical:
-		valueOrValueID = s.meta.GetValueIDForCategoricalValue(id, measurement.ValueString())
+		valueOrValueID = s.meta.GetValueIDForCategoricalValue(id, measurement.(*models.Categorical).Value)
+	case *models.Raw:
+		rawValue = measurement.(*models.Raw).Value
 	}
+
 	s.addChan <- addMessage{
 		name:        name,
-		measurement: SerializedMeasurement{ID: id, Numerical: models.Numerical{Ts: measurement.Timestamp(), Value: valueOrValueID}},
+		measurement: SerializedMeasurement{ID: id, Ts: measurement.Timestamp(), Value: valueOrValueID},
+		rawValue:    rawValue,
 	}
 }
 
@@ -125,78 +135,35 @@ loop:
 		case message := <-s.readChan:
 			message.resultChan <- s.handleRead(message.fromTs, message.toTs, message.filterDefinition)
 		case message := <-s.addChan:
-			s.handleAdd(message.name, message.measurement)
+			s.handleAdd(message)
 		}
 	}
 }
 
-//Commit the buffered writes to actual disk
-func (s *DiskStore) commit() {
-	if s.block.Size() == 0 {
-		return
-	}
-
-	fileList, err := GetSortedFileList()
-	if err != nil {
-		log.Printf("couldn't get file List: %v", err)
-		return
-	}
-	defer func() { s.block = s.block[:0] }()
-	if len(fileList) == 0 {
-		WriteBlockToFile(s.block)
-		return
-	}
-	latestFile := fileList[len(fileList)-1]
-	if latestFile.size < s.maxFileSize {
-		AppendBlockToFile(latestFile, s.block)
-		return
-	}
-	WriteBlockToFile(s.block)
-
-	if fileList.TotalSize() > s.maxDiskSize {
-		oldestFile := fileList[0]
-		os.Remove(filepath.Join(dataPath, oldestFile.name))
-	}
-}
-
-func (s *DiskStore) handleAdd(name string, m SerializedMeasurement) {
-	s.block = append(s.block, m)
-
-	if s.block.Size() > maxBuffer {
-		s.commit()
-	}
-
-}
-
 func (s *DiskStore) handleRead(start, end int64, filterDefinition models.FilterDefinition) readResult {
+	s.DiskWriter.indexWriter.Sync()
+	s.DiskWriter.valueLogWriter.Sync()
+
 	result := readResult{}
-	files, err := GetFilesInTimeRange(start, end)
+	files, err := s.DiskWriter.getFilesInTimeRange(start, end)
 	if err != nil {
 		log.Println(err)
 		return readResult{}
 	}
 	filter := models.NewFilterCollection(filterDefinition)
 	for _, file := range files {
-		byteSlice, err := ioutil.ReadFile(filepath.Join(dataPath, file.name))
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+		byteSlice, err := ioutil.ReadFile(file.name)
+		mustNotBeError(err)
 		block := BlockFromByteSlice(byteSlice)
-
-		s.appendPassingMeasurements(block, start, end, filter, result)
-
-	}
-
-	// the range we read includes the currently buffered block
-	if len(files) == 0 || end > files[len(files)-1].latestTs {
-		s.appendPassingMeasurements(s.block, start, end, filter, result)
+		logReader, err := os.Open(file.valueLogName())
+		mustNotBeError(err)
+		s.appendPassingMeasurements(block, logReader, start, end, filter, result)
 	}
 
 	return result
 }
 
-func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, filter *models.FilterCollection, result readResult) {
+func (s *DiskStore) appendPassingMeasurements(block Block, valueFile *os.File, start, end int64, filter *models.FilterCollection, result readResult) {
 	for _, serializedMeasurement := range block {
 		name := s.meta.GetNameForID(serializedMeasurement.ID)
 		if name == "" {
@@ -215,13 +182,29 @@ func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, fil
 		var measurement models.Measurement
 		switch measurementType {
 		case models.MeasurementNumerical:
-			measurementCopy := serializedMeasurement.Numerical
-			measurement = &measurementCopy
+			measurement = &models.Numerical{Ts: serializedMeasurement.Ts, Value: serializedMeasurement.Value}
 
 		case models.MeasurementCategorical:
 			measurement = &models.Categorical{
 				Ts:    serializedMeasurement.Ts,
 				Value: s.meta.CategoricalMapping.GetOrCreateValueIDMap(serializedMeasurement.ID).ValueIDToValue[serializedMeasurement.Value],
+			}
+		case models.MeasurementRaw:
+			value := make([]byte, serializedMeasurement.Size)
+			pos := int64(serializedMeasurement.Value)
+			n, err := valueFile.ReadAt(value, pos)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			if int64(n) != serializedMeasurement.Size {
+				log.Println("didn't read the expected amount", serializedMeasurement.Size, "but read", n, "instead")
+				continue
+			}
+
+			measurement = &models.Raw{
+				Ts:    serializedMeasurement.Ts,
+				Value: value,
 			}
 		}
 		if filter.Passes(name, measurement) {
@@ -232,8 +215,10 @@ func (s *DiskStore) appendPassingMeasurements(block Block, start, end int64, fil
 
 //SerializedMeasurement is a numerical measureent extended by ID, can be dumped to disk directly
 type SerializedMeasurement struct {
-	ID int64
-	models.Numerical
+	ID    int64
+	Ts    int64
+	Value float64
+	Size  int64
 }
 
-var serializedMeasurementSize = int64(unsafe.Sizeof(SerializedMeasurement{}))
+var serializedMeasurementSize = int(unsafe.Sizeof(SerializedMeasurement{}))
