@@ -43,7 +43,8 @@ func NewServer(config ServerConfig) *Server {
 	store.AddSubscriber(grpcHandler)
 
 	server.debugHandler = &DebugHandler{
-		Port: config.DebugPort,
+		Port:   config.DebugPort,
+		server: server,
 	}
 
 	return server
