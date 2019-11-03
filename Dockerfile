@@ -10,3 +10,4 @@ COPY --from=builder /build/mhist /app
 WORKDIR /app
 CMD ["./mhist"]
 EXPOSE 6666
+EXPOSE 6667
